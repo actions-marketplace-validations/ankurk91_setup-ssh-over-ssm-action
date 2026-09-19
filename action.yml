@@ -1,0 +1,68 @@
+name: 'Setup SSH over AWS SSM'
+description: 'Reach a private Linux EC2 instance with plain ssh, rsync, scp, git and Ansible through AWS Systems Manager Session Manager.'
+author: 'ankurk91'
+
+branding:
+  icon: 'terminal'
+  color: 'orange'
+
+inputs:
+  instance-id:
+    description: 'Target instance ID, for example i-0123456789abcdef0 or mi-0123456789abcdef0.'
+    required: true
+  os-user:
+    description: 'Remote POSIX user to authenticate as. Use ec2-user for Amazon Linux AMIs.'
+    required: false
+    default: 'ubuntu'
+  host-alias:
+    description: 'SSH host alias that downstream steps use. Must not already be defined in ~/.ssh/config.'
+    required: false
+    default: 'ssm-target'
+  region:
+    description: 'AWS region of the instance. Falls back to AWS_REGION, then AWS_DEFAULT_REGION.'
+    required: false
+    default: ''
+  port:
+    description: 'SSH port on the instance.'
+    required: false
+    default: '22'
+  key-type:
+    description: 'Key type for the generated ephemeral key pair. One of ed25519 or rsa.'
+    required: false
+    default: 'ed25519'
+  private-key:
+    description: 'An existing OpenSSH private key to use instead of generating one. Disables EC2 Instance Connect.'
+    required: false
+    default: ''
+  check-instance:
+    description: 'Verify the instance is registered and Online in SSM before configuring SSH.'
+    required: false
+    default: 'true'
+  wait-timeout:
+    description: 'Seconds to wait for the instance to report Online in SSM. 0 disables waiting.'
+    required: false
+    default: '30'
+  terminate-sessions:
+    description: 'In the post step, terminate SSM sessions this job started against the target.'
+    required: false
+    default: 'true'
+  cleanup:
+    description: 'In the post step, remove the managed ~/.ssh/config block and the key material.'
+    required: false
+    default: 'true'
+
+outputs:
+  host:
+    description: 'The SSH host alias to use in downstream steps.'
+  os-user:
+    description: 'The resolved remote user.'
+  key-path:
+    description: 'Absolute path to the private key used for the connection.'
+  ssh-config-path:
+    description: 'Absolute path to the modified SSH config.'
+
+runs:
+  using: 'node24'
+  main: 'dist/main/index.js'
+  post: 'dist/post/index.js'
+  post-if: 'always()'

@@ -1,0 +1,14 @@
+{
+  "$schema": "https://raw.githubusercontent.com/oxc-project/oxc/main/npm/oxlint/configuration_schema.json",
+  // All seven categories are listed so the choice is explicit. Only `correctness` is on by default.
+  "categories": {
+    "correctness": "error", // real bugs: unreachable code, bad references
+    "suspicious": "error", // probably-wrong code, e.g. re-throwing without `cause`
+    "perf": "off", // flags every await-in-loop; the backoff poller and NextToken pagination must stay sequential
+    "pedantic": "off",
+    "style": "off",
+    "restriction": "off",
+    "nursery": "off"
+  },
+  "ignorePatterns": ["dist/"]
+}

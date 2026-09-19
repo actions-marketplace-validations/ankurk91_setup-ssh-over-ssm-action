@@ -1,0 +1,10 @@
+* text=auto eol=lf
+
+dist/** linguist-generated=true -diff
+pnpm-lock.yaml linguist-generated=true
+
+# Keep dev-only files out of release tarballs.
+.editorconfig export-ignore
+.gitattributes export-ignore
+.gitignore export-ignore
+.github/ export-ignore

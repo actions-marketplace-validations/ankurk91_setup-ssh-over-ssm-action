@@ -1,0 +1,119 @@
+// Reads and validates every action input, and resolves the region.
+
+import * as core from '@actions/core'
+import os from 'node:os'
+import path from 'node:path'
+
+const INSTANCE_ID = /^(i|mi)-[0-9a-f]{8}([0-9a-f]{9})?$/
+const POSIX_USER = /^[a-z_][a-z0-9_-]{0,31}$/
+const HOST_ALIAS = /^[A-Za-z0-9._-]{1,64}$/
+const AWS_REGION = /^[a-z]{2}(?:-[a-z]+){1,2}-\d$/
+const UNSAFE = /[\s;&|`$(){}<>\\"'!*?[\]~#]/
+const KEY_TYPES = new Set(['ed25519', 'rsa'])
+
+export class InputError extends Error {}
+
+const fail = (name, received, expected) => {
+  throw new InputError(
+    `Invalid value for input "${name}": received ${JSON.stringify(received)}. Expected ${expected}.`,
+  )
+}
+
+const assertSafe = (name, value) => {
+  if (UNSAFE.test(value)) {
+    fail(name, value, 'a value with no whitespace, quotes or shell metacharacters')
+  }
+  return value
+}
+
+const readBoolean = (name) => {
+  try {
+    return core.getBooleanInput(name)
+  } catch {
+    fail(name, core.getInput(name), 'one of true, True, TRUE, false, False, FALSE')
+  }
+}
+
+const readInteger = (name, { min, max }) => {
+  const raw = core.getInput(name).trim()
+  const value = Number(raw)
+  if (!/^\d+$/.test(raw) || !Number.isSafeInteger(value) || value < min || value > max) {
+    fail(name, raw, `an integer between ${min} and ${max}`)
+  }
+  return value
+}
+
+const resolveRegion = () => {
+  const explicit = core.getInput('region').trim()
+  if (explicit) return assertSafe('region', explicit)
+
+  const ambient = (process.env.AWS_REGION ?? process.env.AWS_DEFAULT_REGION ?? '').trim()
+  if (!ambient) {
+    throw new InputError(
+      'No AWS region could be resolved. Set the "region" input, or configure AWS_REGION / AWS_DEFAULT_REGION ' +
+        '(aws-actions/configure-aws-credentials exports both when you pass aws-region).',
+    )
+  }
+  return assertSafe('region', ambient)
+}
+
+const resolvePrivateKey = () => {
+  const raw = core.getInput('private-key')
+  if (!raw.trim()) return null
+
+  const key = raw.endsWith('\n') ? raw : `${raw}\n`
+  const openssh = /^-----BEGIN (OPENSSH|RSA|EC|DSA) PRIVATE KEY-----\r?\n[\s\S]+\r?\n-----END \1 PRIVATE KEY-----\r?\n$/
+  if (!openssh.test(key)) {
+    throw new InputError(
+      'Input "private-key" does not parse as an OpenSSH private key. Expected PEM text beginning with ' +
+        '"-----BEGIN OPENSSH PRIVATE KEY-----" and ending with the matching END line. ' +
+        'Pass it through a secret and keep the literal newlines intact (use the | block scalar in YAML).',
+    )
+  }
+  return key
+}
+
+export const readInputs = () => {
+  const instanceId = core.getInput('instance-id', { required: true }).trim()
+  if (!INSTANCE_ID.test(instanceId)) {
+    fail('instance-id', instanceId, 'an EC2 or managed instance ID such as i-0123456789abcdef0 or mi-0123456789abcdef0')
+  }
+
+  const osUser = core.getInput('os-user').trim()
+  if (!POSIX_USER.test(osUser)) {
+    fail('os-user', osUser, 'a POSIX user name matching ^[a-z_][a-z0-9_-]{0,31}$, such as ubuntu or ec2-user')
+  }
+
+  const hostAlias = core.getInput('host-alias').trim()
+  if (!HOST_ALIAS.test(hostAlias)) {
+    fail('host-alias', hostAlias, 'an SSH host alias matching ^[A-Za-z0-9._-]{1,64}$, such as ssm-target')
+  }
+
+  const region = resolveRegion()
+  if (!AWS_REGION.test(region)) {
+    fail('region', region, 'an AWS region such as us-east-1, eu-west-2 or us-gov-west-1')
+  }
+
+  const keyType = core.getInput('key-type').trim()
+  if (!KEY_TYPES.has(keyType)) {
+    fail('key-type', keyType, `one of ${[...KEY_TYPES].join(', ')}`)
+  }
+
+  const sshDir = path.join(os.homedir(), '.ssh')
+
+  return Object.freeze({
+    instanceId,
+    osUser,
+    hostAlias,
+    region,
+    keyType,
+    port: readInteger('port', { min: 1, max: 65535 }),
+    waitTimeout: readInteger('wait-timeout', { min: 0, max: 3600 }),
+    privateKey: resolvePrivateKey(),
+    checkInstance: readBoolean('check-instance'),
+    terminateSessions: readBoolean('terminate-sessions'),
+    cleanup: readBoolean('cleanup'),
+    sshDir,
+    sshConfigPath: path.join(sshDir, 'config'),
+  })
+}
