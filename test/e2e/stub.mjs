@@ -19,7 +19,7 @@ const json = (res, body) => {
 
 const handlers = {
   async SendSSHPublicKey(req) {
-    await writeFile(AUTHORIZED_KEYS, `${req.SSHPublicKey}\n`, { mode: 0o600 })
+    await writeFile(AUTHORIZED_KEYS, `${req.SSHPublicKey}\n`, { mode: 0o644 })
     setTimeout(() => rm(AUTHORIZED_KEYS, { force: true }), KEY_TTL_MS).unref()
     return { RequestId: 'stub-eic', Success: true }
   },

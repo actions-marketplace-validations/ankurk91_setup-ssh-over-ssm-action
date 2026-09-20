@@ -110,7 +110,13 @@ check_prerequisites() {
 build_workspace() {
   rm -rf "$RUN_DIR"
   mkdir -p "$RUN_DIR/home/.ssh" "$RUN_DIR/bin" "$RUN_DIR/remote_ssh" "$RUN_DIR/payload"
-  chmod 700 "$RUN_DIR/home/.ssh" "$RUN_DIR/remote_ssh"
+  chmod 700 "$RUN_DIR/home/.ssh"
+
+  # sshd reads authorized_keys as the target user, and the bind mount keeps the host's uid.
+  # That uid only matches the container's ubuntu by luck (it does not on a GitHub runner,
+  # where the host user is 1001), so this directory stays traversable by anyone. The image
+  # sets StrictModes no, which is what lets sshd accept a file it does not own.
+  chmod 755 "$RUN_DIR/remote_ssh"
 
   echo 'hello from the runner' > "$RUN_DIR/payload/app.txt"
   head -c 2000 /dev/urandom > "$RUN_DIR/payload/blob.bin"
