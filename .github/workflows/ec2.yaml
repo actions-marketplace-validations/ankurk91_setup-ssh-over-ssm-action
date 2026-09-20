@@ -1,0 +1,81 @@
+name: EC2 Test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      - name: Set up pnpm and Node
+        uses: pnpm/setup@v2.1.0
+        with:
+          runtime: node@24
+          cache: true
+          require-lockfile: true
+
+      - name: Build
+        run: pnpm run build
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Execute this action
+        uses: ./
+        id: ssm-run
+        with:
+          instance-id: ${{ vars.EC2_INSTANCE_ID }}
+          os-user: ubuntu
+
+      - name: SSH to EC2
+        run: ssh ssm-target 'uptime'
+
+      - name: SSH to EC2 (expect failure)
+        run: |
+          set +e
+          ssh ssm-target 'definitely-not-a-real-command'
+          CODE=$?
+          set -e
+
+          echo "Exit code was $CODE"
+          if [ "$CODE" -ne 127 ]; then
+            echo "Expected 127 (command not found), got $CODE"
+            exit 1
+          fi
+          echo "Got expected exit code 127"
+
+      - name: rsync test file to EC2
+        env:
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          FILE="test-${RUN_ID}-${RUN_ATTEMPT}.log"
+          echo "Creating $FILE"
+
+          mkdir -p ./payload
+          echo "run=$RUN_ID attempt=$RUN_ATTEMPT at $(date -u)" > "./payload/$FILE"
+
+          rsync -az \
+            --rsync-path="mkdir -p /tmp/ci-test && rsync" \
+            ./payload/ ssm-target:/tmp/ci-test/
+
+          echo "REMOTE_FILE=/tmp/ci-test/$FILE" >> "$GITHUB_ENV"
+
+      - name: Verify file landed
+        run: ssh ssm-target "cat '$REMOTE_FILE'"

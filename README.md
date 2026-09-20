@@ -75,7 +75,8 @@ jobs:
 
       - uses: ankurk91/setup-ssh-over-ssm-action@v1
         with:
-          instance-id: i-0123456789abcdef0
+          instance-id: ${{ vars.EC2_INSTANCE_ID }}
+          os-user: ubuntu
 
       - run: ssh ssm-target 'uptime'
 ```
