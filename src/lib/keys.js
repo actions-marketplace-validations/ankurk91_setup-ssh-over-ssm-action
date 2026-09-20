@@ -3,6 +3,7 @@
 import * as core from '@actions/core'
 import * as exec from '@actions/exec'
 import * as io from '@actions/io'
+import { createHash } from 'node:crypto'
 import { chmod, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
@@ -18,13 +19,19 @@ const maskPrivateKey = (contents) => {
   }
 }
 
+// A Unix socket path cannot exceed CONTROL_PATH_MAX bytes, and ssh fails outright rather than
+// degrading when it does, so the control socket is named by a digest instead of the alias and
+// instance id. The key and known_hosts files have no such limit and stay readable.
+export const CONTROL_PATH_MAX = 108
+
 export const keyPaths = ({ sshDir, hostAlias, instanceId }) => {
   const privateKeyPath = path.join(sshDir, `ssm-${hostAlias}-${instanceId}`)
+  const digest = createHash('sha256').update(`${hostAlias}-${instanceId}`).digest('hex').slice(0, 8)
   return {
     privateKeyPath,
     publicKeyPath: `${privateKeyPath}.pub`,
     knownHostsFile: path.join(sshDir, `ssm-${hostAlias}-${instanceId}.known_hosts`),
-    controlPath: path.join(sshDir, `ssm-${hostAlias}-${instanceId}.sock`),
+    controlPath: path.join(sshDir, `ssm-${digest}.sock`),
   }
 }
 

@@ -183,7 +183,7 @@ Be aware of these before adopting it.
 
   ```
   ControlMaster auto
-  ControlPath ~/.ssh/ssm-<alias>-<instance-id>.sock
+  ControlPath ~/.ssh/ssm-<digest>.sock
   ControlPersist 8h
   ```
 

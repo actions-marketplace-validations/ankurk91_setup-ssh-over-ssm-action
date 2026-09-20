@@ -2,7 +2,7 @@ import * as core from '@actions/core'
 import * as io from '@actions/io'
 import { createClients, getCallerArn, sendPublicKey, waitForInstanceOnline } from './lib/aws.js'
 import { InputError, readInputs } from './lib/inputs.js'
-import { generateKeyPair, keyPaths, writeProvidedKey } from './lib/keys.js'
+import { CONTROL_PATH_MAX, generateKeyPair, keyPaths, writeProvidedKey } from './lib/keys.js'
 import { ensureSshDir, renderBlock, upsertBlock } from './lib/ssh-config.js'
 import { STATE } from './lib/state.js'
 
@@ -57,7 +57,17 @@ const run = async () => {
   core.saveState(STATE.privateKeyPath, paths.privateKeyPath)
   core.saveState(STATE.publicKeyPath, paths.publicKeyPath)
   core.saveState(STATE.knownHostsFile, paths.knownHostsFile)
-  core.saveState(STATE.controlPath, paths.controlPath)
+  const controlPathBytes = Buffer.byteLength(paths.controlPath)
+  const multiplex = controlPathBytes < CONTROL_PATH_MAX
+  if (!multiplex) {
+    core.warning(
+      `Connection multiplexing is off: the control socket path is ${controlPathBytes} bytes, at or over the ` +
+        `${CONTROL_PATH_MAX}-byte limit for Unix sockets, and ssh refuses such a path outright. Every connection ` +
+        'will authenticate separately, so a key pushed by EC2 Instance Connect must still be inside its ' +
+        '60 second window. A shorter HOME re-enables it.',
+    )
+  }
+  core.saveState(STATE.controlPath, multiplex ? paths.controlPath : '')
   core.saveState(STATE.terminateSessions, String(config.terminateSessions))
   core.saveState(STATE.cleanup, String(config.cleanup))
 
@@ -120,7 +130,7 @@ const run = async () => {
       region: config.region,
       identityFile: paths.privateKeyPath,
       knownHostsFile: paths.knownHostsFile,
-      controlPath: paths.controlPath,
+      controlPath: multiplex ? paths.controlPath : null,
     })
     core.debug(block)
     await upsertBlock({ sshConfigPath: config.sshConfigPath, hostAlias: config.hostAlias, block })

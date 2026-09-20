@@ -60,9 +60,9 @@ export const renderBlock = ({
     '  StrictHostKeyChecking accept-new',
     `  UserKnownHostsFile ${knownHostsFile}`,
     '  ServerAliveInterval 30',
-    '  ControlMaster auto',
-    `  ControlPath ${controlPath}`,
-    '  ControlPersist 8h',
+    ...(controlPath
+      ? ['  ControlMaster auto', `  ControlPath ${controlPath}`, '  ControlPersist 8h']
+      : []),
     // ssh runs ProxyCommand itself, once per connection, and pipes stdin/stdout through it. The AWS CLI is
     // what orchestrates session-manager-plugin to turn the StartSession WebSocket into that byte stream, so
     // this cannot be replaced by an SDK call. --region is explicit so it does not depend on ambient env
