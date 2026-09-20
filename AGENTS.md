@@ -14,6 +14,7 @@ src/              Source. ESM, plain JavaScript, Node 24.
     aws.js        AWS SDK v3 control-plane calls.
     state.js      State keys shared between the main and post steps.
 dist/             Committed ncc bundles. Generated — never edit by hand.
+test/e2e/         End-to-end rig: Dockerfile (sshd), stub.mjs (AWS stand-in), run.sh.
 ```
 
 ## Build
@@ -32,11 +33,20 @@ That runs `ncc build src/main.js -o dist/main` and `ncc build src/post.js -o dis
 
 ## Tests and linting
 
-There is no test suite, deliberately. Verify changes by running the bundles directly with the `INPUT_*`
-environment variables the runner would set.
-
 Run `pnpm run lint` after every change under `src/`. `.github/workflows/lint.yaml` runs it on pushes to
 `main` and on pull requests. It does not build, and it does not check that `dist/` matches `src/`.
+
+There is no unit test suite. `test/e2e/run.sh` drives the built bundles against a real sshd in Docker, with
+the AWS control plane stubbed, so ssh, rsync and scp exercise the `~/.ssh/config` the action actually wrote:
+
+```sh
+pnpm run build && test/e2e/run.sh
+```
+
+Pass `DOCKER='sudo docker'` if Docker needs root. `.github/workflows/tests.yaml` runs it on pushes to `main`
+and on pull requests across three scenarios: the default alias, a 64-character alias, and a `HOME` deep
+enough to force connection multiplexing off. Run it locally after changing the SSH config block, the key
+handling or the post step.
 
 ## Code style
 
