@@ -1,5 +1,11 @@
 # Setup SSH over AWS SSM Action
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/ankurk91/setup-ssh-over-ssm-action/main/.github/banner.jpg"
+       alt="Secure SSH access to a private AWS EC2 instance from GitHub Actions over AWS Systems Manager Session Manager, with no public IP and no open inbound ports, supporting ssh, rsync, scp, git and Ansible"
+       width="1280" height="640">
+</p>
+
 [![Lint](https://github.com/ankurk91/setup-ssh-over-ssm-action/actions/workflows/lint.yaml/badge.svg?branch=main)](https://github.com/ankurk91/setup-ssh-over-ssm-action/actions/workflows/lint.yaml)
 [![Tests](https://github.com/ankurk91/setup-ssh-over-ssm-action/actions/workflows/tests.yaml/badge.svg?branch=main)](https://github.com/ankurk91/setup-ssh-over-ssm-action/actions/workflows/tests.yaml)
 
