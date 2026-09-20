@@ -1,5 +1,8 @@
 # Setup SSH over AWS SSM Action
 
+[![Lint](https://github.com/ankurk91/setup-ssh-over-ssm-action/actions/workflows/lint.yaml/badge.svg?branch=main)](https://github.com/ankurk91/setup-ssh-over-ssm-action/actions/workflows/lint.yaml)
+[![Tests](https://github.com/ankurk91/setup-ssh-over-ssm-action/actions/workflows/tests.yaml/badge.svg?branch=main)](https://github.com/ankurk91/setup-ssh-over-ssm-action/actions/workflows/tests.yaml)
+
 A GitHub Action that configures the runner so ordinary `ssh`, `rsync`, `scp`, `git` and Ansible can reach a
 private Linux EC2 instance through AWS Systems Manager Session Manager.
 
