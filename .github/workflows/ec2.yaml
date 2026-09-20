@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  lint:
+  ec2:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -44,7 +44,10 @@ jobs:
           os-user: ubuntu
 
       - name: SSH to EC2
-        run: ssh ssm-target 'uptime'
+        run: |
+          echo "--- uptime ---"
+          ssh ssm-target 'uptime; echo; id; hostname -f'
+          echo "--- end ---"
 
       - name: SSH to EC2 (expect failure)
         run: |
@@ -71,11 +74,16 @@ jobs:
           mkdir -p ./payload
           echo "run=$RUN_ID attempt=$RUN_ATTEMPT at $(date -u)" > "./payload/$FILE"
 
-          rsync -az \
+          rsync -avz --itemize-changes --stats \
             --rsync-path="mkdir -p /tmp/ci-test && rsync" \
             ./payload/ ssm-target:/tmp/ci-test/
 
           echo "REMOTE_FILE=/tmp/ci-test/$FILE" >> "$GITHUB_ENV"
 
       - name: Verify file landed
-        run: ssh ssm-target "cat '$REMOTE_FILE'"
+        run: |
+          echo "--- remote listing ---"
+          ssh ssm-target "ls -l /tmp/ci-test/"
+          echo "--- remote file ---"
+          ssh ssm-target "cat '$REMOTE_FILE'"
+          echo "--- end ---"
