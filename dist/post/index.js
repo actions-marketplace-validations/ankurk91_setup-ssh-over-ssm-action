@@ -11538,1253 +11538,6 @@ __webpack_unused_export__ = waitUntilCommandExecuted;
 
 /***/ }),
 
-/***/ 1096:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-var __webpack_unused_export__;
-const { awsEndpointFunctions, emitWarningIfUnsupportedVersion: emitWarningIfUnsupportedVersion$1, createDefaultUserAgentProvider, NODE_APP_ID_CONFIG_OPTIONS, getAwsRegionExtensionConfiguration, resolveAwsRegionExtensionConfiguration, resolveUserAgentConfig, resolveHostHeaderConfig, getUserAgentPlugin, getHostHeaderPlugin, getLoggerPlugin, getRecursionDetectionPlugin, setCredentialFeature, stsRegionDefaultResolver } = __nccwpck_require__(4766);
-const { NoAuthSigner, getHttpAuthSchemeEndpointRuleSetPlugin, DefaultIdentityProviderConfig, getHttpSigningPlugin } = __nccwpck_require__(9152);
-const { normalizeProvider, getSmithyContext, ServiceException, NoOpLogger, emitWarningIfUnsupportedVersion, loadConfigsForDefaultMode, getDefaultExtensionConfiguration, resolveDefaultRuntimeConfig, Client, makeBuilder, createAggregatedClient } = __nccwpck_require__(4960);
-const { Command: $Command } = __nccwpck_require__(4960);
-__webpack_unused_export__ = $Command;
-__webpack_unused_export__ = Client;
-const { resolveDefaultsModeConfig, loadConfig, NODE_USE_FIPS_ENDPOINT_CONFIG_OPTIONS, NODE_USE_DUALSTACK_ENDPOINT_CONFIG_OPTIONS, NODE_REGION_CONFIG_OPTIONS, NODE_REGION_CONFIG_FILE_OPTIONS, resolveRegionConfig } = __nccwpck_require__(309);
-const { BinaryDecisionDiagram, EndpointCache, decideEndpoint, customEndpointFunctions, resolveParams, resolveEndpointConfig, getEndpointPlugin } = __nccwpck_require__(8159);
-const { parseUrl, getHttpHandlerExtensionConfiguration, resolveHttpHandlerRuntimeConfig, getContentLengthPlugin } = __nccwpck_require__(8824);
-const { DEFAULT_RETRY_MODE, NODE_RETRY_MODE_CONFIG_OPTIONS, NODE_MAX_ATTEMPT_CONFIG_OPTIONS, resolveRetryConfig, getRetryPlugin } = __nccwpck_require__(8291);
-const { TypeRegistry, getSchemaSerdePlugin } = __nccwpck_require__(2544);
-const { resolveAwsSdkSigV4Config, resolveAwsSdkSigV4AConfig, AwsSdkSigV4Signer, AwsSdkSigV4ASigner, NODE_SIGV4A_CONFIG_OPTIONS, NODE_AUTH_SCHEME_PREFERENCE_OPTIONS } = __nccwpck_require__(9993);
-const { SignatureV4MultiRegion } = __nccwpck_require__(7924);
-const { defaultProvider } = __nccwpck_require__(9565);
-const { toUtf8, fromUtf8, toBase64, fromBase64, calculateBodyLength } = __nccwpck_require__(2672);
-const { streamCollector, NodeHttpHandler } = __nccwpck_require__(6965);
-const { AwsQueryProtocol } = __nccwpck_require__(8794);
-const { Sha256 } = __nccwpck_require__(540);
-
-const q = "ref";
-const a = -1, b = true, c = "isSet", d = "PartitionResult", e = "booleanEquals", f = "stringEquals", g = "getAttr", h = "us-east-1", i = "sigv4", j = "sts", k = "https://sts.{Region}.{PartitionResult#dnsSuffix}", l = { [q]: "Endpoint" }, m = { [q]: "Region" }, n = { [q]: d }, o = {}, p = [m];
-const _data = {
-    conditions: [
-        [c, [l]],
-        [c, p],
-        ["aws.partition", p, d],
-        [e, [{ [q]: "UseFIPS" }, b]],
-        [e, [{ [q]: "UseDualStack" }, b]],
-        [f, [m, "aws-global"]],
-        [e, [{ [q]: "UseGlobalEndpoint" }, b]],
-        [f, [m, "eu-central-1"]],
-        [e, [{ fn: g, argv: [n, "supportsDualStack"] }, b]],
-        [e, [{ fn: g, argv: [n, "supportsFIPS"] }, b]],
-        [f, [m, "ap-south-1"]],
-        [f, [m, "eu-north-1"]],
-        [f, [m, "eu-west-1"]],
-        [f, [m, "eu-west-2"]],
-        [f, [m, "eu-west-3"]],
-        [f, [m, "sa-east-1"]],
-        [f, [m, h]],
-        [f, [m, "us-east-2"]],
-        [f, [m, "us-west-2"]],
-        [f, [m, "us-west-1"]],
-        [f, [m, "ca-central-1"]],
-        [f, [m, "ap-southeast-1"]],
-        [f, [m, "ap-northeast-1"]],
-        [f, [m, "ap-southeast-2"]],
-        [f, [{ fn: g, argv: [n, "name"] }, "aws-us-gov"]]
-    ],
-    results: [
-        [a],
-        ["https://sts.amazonaws.com", { authSchemes: [{ name: i, signingName: j, signingRegion: h }] }],
-        [k, { authSchemes: [{ name: i, signingName: j, signingRegion: "{Region}" }] }],
-        [a, "Invalid Configuration: FIPS and custom endpoint are not supported"],
-        [a, "Invalid Configuration: Dualstack and custom endpoint are not supported"],
-        [l, o],
-        ["https://sts-fips.{Region}.{PartitionResult#dualStackDnsSuffix}", o],
-        [a, "FIPS and DualStack are enabled, but this partition does not support one or both"],
-        ["https://sts.{Region}.amazonaws.com", o],
-        ["https://sts-fips.{Region}.{PartitionResult#dnsSuffix}", o],
-        [a, "FIPS is enabled but this partition does not support FIPS"],
-        ["https://sts.{Region}.{PartitionResult#dualStackDnsSuffix}", o],
-        [a, "DualStack is enabled but this partition does not support DualStack"],
-        [k, o],
-        [a, "Invalid Configuration: Missing Region"]
-    ]
-};
-const root = 2;
-const r = 100_000_000;
-const nodes = new Int32Array([
-    -1, 1, -1,
-    0, 30, 3,
-    1, 4, r + 14,
-    2, 5, r + 14,
-    3, 25, 6,
-    4, 24, 7,
-    5, r + 1, 8,
-    6, 9, r + 13,
-    7, r + 1, 10,
-    10, r + 1, 11,
-    11, r + 1, 12,
-    12, r + 1, 13,
-    13, r + 1, 14,
-    14, r + 1, 15,
-    15, r + 1, 16,
-    16, r + 1, 17,
-    17, r + 1, 18,
-    18, r + 1, 19,
-    19, r + 1, 20,
-    20, r + 1, 21,
-    21, r + 1, 22,
-    22, r + 1, 23,
-    23, r + 1, r + 2,
-    8, r + 11, r + 12,
-    4, 28, 26,
-    9, 27, r + 10,
-    24, r + 8, r + 9,
-    8, 29, r + 7,
-    9, r + 6, r + 7,
-    3, r + 3, 31,
-    4, r + 4, r + 5,
-]);
-const bdd = BinaryDecisionDiagram.from(nodes, root, _data.conditions, _data.results);
-
-const cache = new EndpointCache({
-    size: 50,
-    params: ["Endpoint", "Region", "UseDualStack", "UseFIPS", "UseGlobalEndpoint"],
-});
-const defaultEndpointResolver = (endpointParams, context = {}) => {
-    return cache.get(endpointParams, () => decideEndpoint(bdd, {
-        endpointParams: endpointParams,
-        logger: context.logger,
-    }));
-};
-customEndpointFunctions.aws = awsEndpointFunctions;
-
-const createEndpointRuleSetHttpAuthSchemeParametersProvider = (defaultHttpAuthSchemeParametersProvider) => async (config, context, input) => {
-    if (!input) {
-        throw new Error("Could not find `input` for `defaultEndpointRuleSetHttpAuthSchemeParametersProvider`");
-    }
-    const defaultParameters = await defaultHttpAuthSchemeParametersProvider(config, context, input);
-    const instructionsFn = getSmithyContext(context)?.commandInstance?.constructor
-        ?.getEndpointParameterInstructions;
-    if (!instructionsFn) {
-        throw new Error(`getEndpointParameterInstructions() is not defined on '${context.commandName}'`);
-    }
-    const endpointParameters = await resolveParams(input, { getEndpointParameterInstructions: instructionsFn }, config);
-    return Object.assign(defaultParameters, endpointParameters);
-};
-const _defaultSTSHttpAuthSchemeParametersProvider = async (config, context, input) => {
-    return {
-        operation: getSmithyContext(context).operation,
-        region: await normalizeProvider(config.region)() || (() => {
-            throw new Error("expected `region` to be configured for `aws.auth#sigv4`");
-        })(),
-    };
-};
-const defaultSTSHttpAuthSchemeParametersProvider = createEndpointRuleSetHttpAuthSchemeParametersProvider(_defaultSTSHttpAuthSchemeParametersProvider);
-function createAwsAuthSigv4HttpAuthOption(authParameters) {
-    return {
-        schemeId: "aws.auth#sigv4",
-        signingProperties: {
-            name: "sts",
-            region: authParameters.region,
-        },
-        propertiesExtractor: (config, context) => ({
-            signingProperties: {
-                config,
-                context,
-            },
-        }),
-    };
-}
-function createAwsAuthSigv4aHttpAuthOption(authParameters) {
-    return {
-        schemeId: "aws.auth#sigv4a",
-        signingProperties: {
-            name: "sts",
-            region: authParameters.region,
-        },
-        propertiesExtractor: (config, context) => ({
-            signingProperties: {
-                config,
-                context,
-            },
-        }),
-    };
-}
-function createSmithyApiNoAuthHttpAuthOption(authParameters) {
-    return {
-        schemeId: "smithy.api#noAuth",
-    };
-}
-const createEndpointRuleSetHttpAuthSchemeProvider = (defaultEndpointResolver, defaultHttpAuthSchemeResolver, createHttpAuthOptionFunctions) => {
-    const endpointRuleSetHttpAuthSchemeProvider = (authParameters) => {
-        const endpoint = defaultEndpointResolver(authParameters);
-        const authSchemes = endpoint.properties?.authSchemes;
-        if (!authSchemes) {
-            return defaultHttpAuthSchemeResolver(authParameters);
-        }
-        const options = [];
-        for (const scheme of authSchemes) {
-            const { name: resolvedName, properties = {}, ...rest } = scheme;
-            const name = resolvedName.toLowerCase();
-            if (resolvedName !== name) {
-                console.warn(`HttpAuthScheme has been normalized with lowercasing: '${resolvedName}' to '${name}'`);
-            }
-            let schemeId;
-            if (name === "sigv4a") {
-                schemeId = "aws.auth#sigv4a";
-                const sigv4Present = authSchemes.find((s) => {
-                    const name = s.name.toLowerCase();
-                    return name !== "sigv4a" && name.startsWith("sigv4");
-                });
-                if (SignatureV4MultiRegion.sigv4aDependency() === "none" && sigv4Present) {
-                    continue;
-                }
-            }
-            else if (name.startsWith("sigv4")) {
-                schemeId = "aws.auth#sigv4";
-            }
-            else {
-                throw new Error(`Unknown HttpAuthScheme found in '@smithy.rules#endpointRuleSet': '${name}'`);
-            }
-            const createOption = createHttpAuthOptionFunctions[schemeId];
-            if (!createOption) {
-                throw new Error(`Could not find HttpAuthOption create function for '${schemeId}'`);
-            }
-            const option = createOption(authParameters);
-            option.schemeId = schemeId;
-            option.signingProperties = { ...(option.signingProperties || {}), ...rest, ...properties };
-            options.push(option);
-        }
-        return options;
-    };
-    return endpointRuleSetHttpAuthSchemeProvider;
-};
-const _defaultSTSHttpAuthSchemeProvider = (authParameters) => {
-    const options = [];
-    switch (authParameters.operation) {
-        case "AssumeRoleWithSAML": {
-            options.push(createSmithyApiNoAuthHttpAuthOption());
-            options.push(createAwsAuthSigv4aHttpAuthOption(authParameters));
-            break;
-        }
-        case "AssumeRoleWithWebIdentity": {
-            options.push(createSmithyApiNoAuthHttpAuthOption());
-            options.push(createAwsAuthSigv4aHttpAuthOption(authParameters));
-            break;
-        }
-        default: {
-            options.push(createAwsAuthSigv4HttpAuthOption(authParameters));
-            options.push(createAwsAuthSigv4aHttpAuthOption(authParameters));
-        }
-    }
-    return options;
-};
-const defaultSTSHttpAuthSchemeProvider = createEndpointRuleSetHttpAuthSchemeProvider(defaultEndpointResolver, _defaultSTSHttpAuthSchemeProvider, {
-    "aws.auth#sigv4": createAwsAuthSigv4HttpAuthOption,
-    "aws.auth#sigv4a": createAwsAuthSigv4aHttpAuthOption,
-    "smithy.api#noAuth": createSmithyApiNoAuthHttpAuthOption,
-});
-const resolveHttpAuthSchemeConfig = (config) => {
-    const config_0 = resolveAwsSdkSigV4Config(config);
-    const config_1 = resolveAwsSdkSigV4AConfig(config_0);
-    return Object.assign(config_1, {
-        authSchemePreference: normalizeProvider(config.authSchemePreference ?? []),
-    });
-};
-
-const resolveClientEndpointParameters = (options) => {
-    return Object.assign(options, {
-        useDualstackEndpoint: options.useDualstackEndpoint ?? false,
-        useFipsEndpoint: options.useFipsEndpoint ?? false,
-        useGlobalEndpoint: options.useGlobalEndpoint ?? false,
-        defaultSigningName: "sts",
-    });
-};
-const commonParams = {
-    UseGlobalEndpoint: { type: "builtInParams", name: "useGlobalEndpoint" },
-    UseFIPS: { type: "builtInParams", name: "useFipsEndpoint" },
-    Endpoint: { type: "builtInParams", name: "endpoint" },
-    Region: { type: "builtInParams", name: "region" },
-    UseDualStack: { type: "builtInParams", name: "useDualstackEndpoint" },
-};
-
-var version = "3.1134.0";
-var packageInfo = {
-	version: version};
-
-class STSServiceException extends ServiceException {
-    constructor(options) {
-        super(options);
-        Object.setPrototypeOf(this, STSServiceException.prototype);
-    }
-}
-
-class ExpiredTokenException extends STSServiceException {
-    name = "ExpiredTokenException";
-    $fault = "client";
-    constructor(opts) {
-        super({
-            name: "ExpiredTokenException",
-            $fault: "client",
-            ...opts,
-        });
-        Object.setPrototypeOf(this, ExpiredTokenException.prototype);
-    }
-}
-class MalformedPolicyDocumentException extends STSServiceException {
-    name = "MalformedPolicyDocumentException";
-    $fault = "client";
-    constructor(opts) {
-        super({
-            name: "MalformedPolicyDocumentException",
-            $fault: "client",
-            ...opts,
-        });
-        Object.setPrototypeOf(this, MalformedPolicyDocumentException.prototype);
-    }
-}
-class PackedPolicyTooLargeException extends STSServiceException {
-    name = "PackedPolicyTooLargeException";
-    $fault = "client";
-    constructor(opts) {
-        super({
-            name: "PackedPolicyTooLargeException",
-            $fault: "client",
-            ...opts,
-        });
-        Object.setPrototypeOf(this, PackedPolicyTooLargeException.prototype);
-    }
-}
-class RegionDisabledException extends STSServiceException {
-    name = "RegionDisabledException";
-    $fault = "client";
-    constructor(opts) {
-        super({
-            name: "RegionDisabledException",
-            $fault: "client",
-            ...opts,
-        });
-        Object.setPrototypeOf(this, RegionDisabledException.prototype);
-    }
-}
-class IDPRejectedClaimException extends STSServiceException {
-    name = "IDPRejectedClaimException";
-    $fault = "client";
-    constructor(opts) {
-        super({
-            name: "IDPRejectedClaimException",
-            $fault: "client",
-            ...opts,
-        });
-        Object.setPrototypeOf(this, IDPRejectedClaimException.prototype);
-    }
-}
-class InvalidIdentityTokenException extends STSServiceException {
-    name = "InvalidIdentityTokenException";
-    $fault = "client";
-    constructor(opts) {
-        super({
-            name: "InvalidIdentityTokenException",
-            $fault: "client",
-            ...opts,
-        });
-        Object.setPrototypeOf(this, InvalidIdentityTokenException.prototype);
-    }
-}
-class IDPCommunicationErrorException extends STSServiceException {
-    name = "IDPCommunicationErrorException";
-    $fault = "client";
-    $retryable = {};
-    constructor(opts) {
-        super({
-            name: "IDPCommunicationErrorException",
-            $fault: "client",
-            ...opts,
-        });
-        Object.setPrototypeOf(this, IDPCommunicationErrorException.prototype);
-    }
-}
-class InvalidAuthorizationMessageException extends STSServiceException {
-    name = "InvalidAuthorizationMessageException";
-    $fault = "client";
-    constructor(opts) {
-        super({
-            name: "InvalidAuthorizationMessageException",
-            $fault: "client",
-            ...opts,
-        });
-        Object.setPrototypeOf(this, InvalidAuthorizationMessageException.prototype);
-    }
-}
-class ExpiredTradeInTokenException extends STSServiceException {
-    name = "ExpiredTradeInTokenException";
-    $fault = "client";
-    constructor(opts) {
-        super({
-            name: "ExpiredTradeInTokenException",
-            $fault: "client",
-            ...opts,
-        });
-        Object.setPrototypeOf(this, ExpiredTradeInTokenException.prototype);
-    }
-}
-class JWTPayloadSizeExceededException extends STSServiceException {
-    name = "JWTPayloadSizeExceededException";
-    $fault = "client";
-    constructor(opts) {
-        super({
-            name: "JWTPayloadSizeExceededException",
-            $fault: "client",
-            ...opts,
-        });
-        Object.setPrototypeOf(this, JWTPayloadSizeExceededException.prototype);
-    }
-}
-class OutboundWebIdentityFederationDisabledException extends STSServiceException {
-    name = "OutboundWebIdentityFederationDisabledException";
-    $fault = "client";
-    constructor(opts) {
-        super({
-            name: "OutboundWebIdentityFederationDisabledException",
-            $fault: "client",
-            ...opts,
-        });
-        Object.setPrototypeOf(this, OutboundWebIdentityFederationDisabledException.prototype);
-    }
-}
-class SessionDurationEscalationException extends STSServiceException {
-    name = "SessionDurationEscalationException";
-    $fault = "client";
-    constructor(opts) {
-        super({
-            name: "SessionDurationEscalationException",
-            $fault: "client",
-            ...opts,
-        });
-        Object.setPrototypeOf(this, SessionDurationEscalationException.prototype);
-    }
-}
-
-const _A = "Arn";
-const _AKI = "AccessKeyId";
-const _AP = "AssumedPrincipal";
-const _AR = "AssumeRole";
-const _ARI = "AssumedRoleId";
-const _ARR = "AssumeRoleRequest";
-const _ARRs = "AssumeRoleResponse";
-const _ARRss = "AssumeRootRequest";
-const _ARRssu = "AssumeRootResponse";
-const _ARU = "AssumedRoleUser";
-const _ARWSAML = "AssumeRoleWithSAML";
-const _ARWSAMLR = "AssumeRoleWithSAMLRequest";
-const _ARWSAMLRs = "AssumeRoleWithSAMLResponse";
-const _ARWWI = "AssumeRoleWithWebIdentity";
-const _ARWWIR = "AssumeRoleWithWebIdentityRequest";
-const _ARWWIRs = "AssumeRoleWithWebIdentityResponse";
-const _ARs = "AssumeRoot";
-const _Ac = "Account";
-const _Au = "Audience";
-const _C = "Credentials";
-const _CA = "ContextAssertion";
-const _DAM = "DecodeAuthorizationMessage";
-const _DAMR = "DecodeAuthorizationMessageRequest";
-const _DAMRe = "DecodeAuthorizationMessageResponse";
-const _DM = "DecodedMessage";
-const _DS = "DurationSeconds";
-const _E = "Expiration";
-const _EI = "ExternalId";
-const _EM = "EncodedMessage";
-const _ETE = "ExpiredTokenException";
-const _ETITE = "ExpiredTradeInTokenException";
-const _FU = "FederatedUser";
-const _FUI = "FederatedUserId";
-const _GAKI = "GetAccessKeyInfo";
-const _GAKIR = "GetAccessKeyInfoRequest";
-const _GAKIRe = "GetAccessKeyInfoResponse";
-const _GCI = "GetCallerIdentity";
-const _GCIR = "GetCallerIdentityRequest";
-const _GCIRe = "GetCallerIdentityResponse";
-const _GDAT = "GetDelegatedAccessToken";
-const _GDATR = "GetDelegatedAccessTokenRequest";
-const _GDATRe = "GetDelegatedAccessTokenResponse";
-const _GFT = "GetFederationToken";
-const _GFTR = "GetFederationTokenRequest";
-const _GFTRe = "GetFederationTokenResponse";
-const _GST = "GetSessionToken";
-const _GSTR = "GetSessionTokenRequest";
-const _GSTRe = "GetSessionTokenResponse";
-const _GWIT = "GetWebIdentityToken";
-const _GWITR = "GetWebIdentityTokenRequest";
-const _GWITRe = "GetWebIdentityTokenResponse";
-const _I = "Issuer";
-const _IAME = "InvalidAuthorizationMessageException";
-const _IDPCEE = "IDPCommunicationErrorException";
-const _IDPRCE = "IDPRejectedClaimException";
-const _IITE = "InvalidIdentityTokenException";
-const _JWTPSEE = "JWTPayloadSizeExceededException";
-const _K = "Key";
-const _MPDE = "MalformedPolicyDocumentException";
-const _MSTS = "MinimumSessionTokenSize";
-const _N = "Name";
-const _NQ = "NameQualifier";
-const _OWIFDE = "OutboundWebIdentityFederationDisabledException";
-const _P = "Policy";
-const _PA = "PolicyArns";
-const _PAr = "PrincipalArn";
-const _PAro = "ProviderArn";
-const _PC = "ProvidedContexts";
-const _PCLT = "ProvidedContextsListType";
-const _PCr = "ProvidedContext";
-const _PDT = "PolicyDescriptorType";
-const _PI = "ProviderId";
-const _PPS = "PackedPolicySize";
-const _PPTLE = "PackedPolicyTooLargeException";
-const _Pr = "Provider";
-const _RA = "RoleArn";
-const _RDE = "RegionDisabledException";
-const _RSN = "RoleSessionName";
-const _S = "Subject";
-const _SA = "SigningAlgorithm";
-const _SAK = "SecretAccessKey";
-const _SAMLA = "SAMLAssertion";
-const _SAMLAT = "SAMLAssertionType";
-const _SDEE = "SessionDurationEscalationException";
-const _SFWIT = "SubjectFromWebIdentityToken";
-const _SI = "SourceIdentity";
-const _SN = "SerialNumber";
-const _ST = "SubjectType";
-const _STS = "SessionTokenSize";
-const _STU = "SessionTokenUtilization";
-const _STe = "SessionToken";
-const _T = "Tags";
-const _TC = "TokenCode";
-const _TIT = "TradeInToken";
-const _TP = "TargetPrincipal";
-const _TPA = "TaskPolicyArn";
-const _TTK = "TransitiveTagKeys";
-const _Ta = "Tag";
-const _UI = "UserId";
-const _V = "Value";
-const _WIT = "WebIdentityToken";
-const _a = "arn";
-const _aKST = "accessKeySecretType";
-const _aQE = "awsQueryError";
-const _c = "client";
-const _cTT = "clientTokenType";
-const _e = "error";
-const _hE = "httpError";
-const _m = "message";
-const _pDLT = "policyDescriptorListType";
-const _s = "smithy.ts.sdk.synthetic.com.amazonaws.sts";
-const _tITT = "tradeInTokenType";
-const _tLT = "tagListType";
-const _wITT = "webIdentityTokenType";
-const n0 = "com.amazonaws.sts";
-const _s_registry = TypeRegistry.for(_s);
-var STSServiceException$ = [-3, _s, "STSServiceException", 0, [], []];
-_s_registry.registerError(STSServiceException$, STSServiceException);
-const n0_registry = TypeRegistry.for(n0);
-var ExpiredTokenException$ = [-3, n0, _ETE,
-    { [_aQE]: [`ExpiredTokenException`, 400], [_e]: _c, [_hE]: 400 },
-    [_m],
-    [0]
-];
-n0_registry.registerError(ExpiredTokenException$, ExpiredTokenException);
-var ExpiredTradeInTokenException$ = [-3, n0, _ETITE,
-    { [_aQE]: [`ExpiredTradeInTokenException`, 400], [_e]: _c, [_hE]: 400 },
-    [_m],
-    [0]
-];
-n0_registry.registerError(ExpiredTradeInTokenException$, ExpiredTradeInTokenException);
-var IDPCommunicationErrorException$ = [-3, n0, _IDPCEE,
-    { [_aQE]: [`IDPCommunicationError`, 400], [_e]: _c, [_hE]: 400 },
-    [_m],
-    [0]
-];
-n0_registry.registerError(IDPCommunicationErrorException$, IDPCommunicationErrorException);
-var IDPRejectedClaimException$ = [-3, n0, _IDPRCE,
-    { [_aQE]: [`IDPRejectedClaim`, 403], [_e]: _c, [_hE]: 403 },
-    [_m],
-    [0]
-];
-n0_registry.registerError(IDPRejectedClaimException$, IDPRejectedClaimException);
-var InvalidAuthorizationMessageException$ = [-3, n0, _IAME,
-    { [_aQE]: [`InvalidAuthorizationMessageException`, 400], [_e]: _c, [_hE]: 400 },
-    [_m],
-    [0]
-];
-n0_registry.registerError(InvalidAuthorizationMessageException$, InvalidAuthorizationMessageException);
-var InvalidIdentityTokenException$ = [-3, n0, _IITE,
-    { [_aQE]: [`InvalidIdentityToken`, 400], [_e]: _c, [_hE]: 400 },
-    [_m],
-    [0]
-];
-n0_registry.registerError(InvalidIdentityTokenException$, InvalidIdentityTokenException);
-var JWTPayloadSizeExceededException$ = [-3, n0, _JWTPSEE,
-    { [_aQE]: [`JWTPayloadSizeExceededException`, 400], [_e]: _c, [_hE]: 400 },
-    [_m],
-    [0]
-];
-n0_registry.registerError(JWTPayloadSizeExceededException$, JWTPayloadSizeExceededException);
-var MalformedPolicyDocumentException$ = [-3, n0, _MPDE,
-    { [_aQE]: [`MalformedPolicyDocument`, 400], [_e]: _c, [_hE]: 400 },
-    [_m],
-    [0]
-];
-n0_registry.registerError(MalformedPolicyDocumentException$, MalformedPolicyDocumentException);
-var OutboundWebIdentityFederationDisabledException$ = [-3, n0, _OWIFDE,
-    { [_aQE]: [`OutboundWebIdentityFederationDisabledException`, 403], [_e]: _c, [_hE]: 403 },
-    [_m],
-    [0]
-];
-n0_registry.registerError(OutboundWebIdentityFederationDisabledException$, OutboundWebIdentityFederationDisabledException);
-var PackedPolicyTooLargeException$ = [-3, n0, _PPTLE,
-    { [_aQE]: [`PackedPolicyTooLarge`, 400], [_e]: _c, [_hE]: 400 },
-    [_m],
-    [0]
-];
-n0_registry.registerError(PackedPolicyTooLargeException$, PackedPolicyTooLargeException);
-var RegionDisabledException$ = [-3, n0, _RDE,
-    { [_aQE]: [`RegionDisabledException`, 403], [_e]: _c, [_hE]: 403 },
-    [_m],
-    [0]
-];
-n0_registry.registerError(RegionDisabledException$, RegionDisabledException);
-var SessionDurationEscalationException$ = [-3, n0, _SDEE,
-    { [_aQE]: [`SessionDurationEscalationException`, 403], [_e]: _c, [_hE]: 403 },
-    [_m],
-    [0]
-];
-n0_registry.registerError(SessionDurationEscalationException$, SessionDurationEscalationException);
-const errorTypeRegistries = [
-    _s_registry,
-    n0_registry,
-];
-var accessKeySecretType = [0, n0, _aKST, 8, 0];
-var clientTokenType = [0, n0, _cTT, 8, 0];
-var SAMLAssertionType = [0, n0, _SAMLAT, 8, 0];
-var tradeInTokenType = [0, n0, _tITT, 8, 0];
-var webIdentityTokenType = [0, n0, _wITT, 8, 0];
-var AssumedRoleUser$ = [3, n0, _ARU,
-    0,
-    [_ARI, _A],
-    [0, 0], 2
-];
-var AssumeRoleRequest$ = [3, n0, _ARR,
-    0,
-    [_RA, _RSN, _PA, _P, _DS, _T, _TTK, _EI, _SN, _TC, _SI, _PC, _MSTS],
-    [0, 0, () => policyDescriptorListType, 0, 1, () => tagListType, 64 | 0, 0, 0, 0, 0, () => ProvidedContextsListType, 1], 2
-];
-var AssumeRoleResponse$ = [3, n0, _ARRs,
-    0,
-    [_C, _ARU, _PPS, _SI, _STU, _STS],
-    [[() => Credentials$, 0], () => AssumedRoleUser$, 1, 0, 1, 1]
-];
-var AssumeRoleWithSAMLRequest$ = [3, n0, _ARWSAMLR,
-    0,
-    [_RA, _PAr, _SAMLA, _PA, _P, _DS, _MSTS],
-    [0, 0, [() => SAMLAssertionType, 0], () => policyDescriptorListType, 0, 1, 1], 3
-];
-var AssumeRoleWithSAMLResponse$ = [3, n0, _ARWSAMLRs,
-    0,
-    [_C, _ARU, _PPS, _S, _ST, _I, _Au, _NQ, _SI, _STU, _STS],
-    [[() => Credentials$, 0], () => AssumedRoleUser$, 1, 0, 0, 0, 0, 0, 0, 1, 1]
-];
-var AssumeRoleWithWebIdentityRequest$ = [3, n0, _ARWWIR,
-    0,
-    [_RA, _RSN, _WIT, _PI, _PA, _P, _DS, _MSTS],
-    [0, 0, [() => clientTokenType, 0], 0, () => policyDescriptorListType, 0, 1, 1], 3
-];
-var AssumeRoleWithWebIdentityResponse$ = [3, n0, _ARWWIRs,
-    0,
-    [_C, _SFWIT, _ARU, _PPS, _Pr, _Au, _SI, _STU, _STS],
-    [[() => Credentials$, 0], 0, () => AssumedRoleUser$, 1, 0, 0, 0, 1, 1]
-];
-var AssumeRootRequest$ = [3, n0, _ARRss,
-    0,
-    [_TP, _TPA, _DS, _MSTS],
-    [0, () => PolicyDescriptorType$, 1, 1], 2
-];
-var AssumeRootResponse$ = [3, n0, _ARRssu,
-    0,
-    [_C, _SI, _STU, _STS],
-    [[() => Credentials$, 0], 0, 1, 1]
-];
-var Credentials$ = [3, n0, _C,
-    0,
-    [_AKI, _SAK, _STe, _E],
-    [0, [() => accessKeySecretType, 0], 0, 4], 4
-];
-var DecodeAuthorizationMessageRequest$ = [3, n0, _DAMR,
-    0,
-    [_EM],
-    [0], 1
-];
-var DecodeAuthorizationMessageResponse$ = [3, n0, _DAMRe,
-    0,
-    [_DM],
-    [0]
-];
-var FederatedUser$ = [3, n0, _FU,
-    0,
-    [_FUI, _A],
-    [0, 0], 2
-];
-var GetAccessKeyInfoRequest$ = [3, n0, _GAKIR,
-    0,
-    [_AKI],
-    [0], 1
-];
-var GetAccessKeyInfoResponse$ = [3, n0, _GAKIRe,
-    0,
-    [_Ac],
-    [0]
-];
-var GetCallerIdentityRequest$ = [3, n0, _GCIR,
-    0,
-    [],
-    []
-];
-var GetCallerIdentityResponse$ = [3, n0, _GCIRe,
-    0,
-    [_UI, _Ac, _A],
-    [0, 0, 0]
-];
-var GetDelegatedAccessTokenRequest$ = [3, n0, _GDATR,
-    0,
-    [_TIT],
-    [[() => tradeInTokenType, 0]], 1
-];
-var GetDelegatedAccessTokenResponse$ = [3, n0, _GDATRe,
-    0,
-    [_C, _PPS, _AP],
-    [[() => Credentials$, 0], 1, 0]
-];
-var GetFederationTokenRequest$ = [3, n0, _GFTR,
-    0,
-    [_N, _P, _PA, _DS, _T, _MSTS],
-    [0, 0, () => policyDescriptorListType, 1, () => tagListType, 1], 1
-];
-var GetFederationTokenResponse$ = [3, n0, _GFTRe,
-    0,
-    [_C, _FU, _PPS, _STU, _STS],
-    [[() => Credentials$, 0], () => FederatedUser$, 1, 1, 1]
-];
-var GetSessionTokenRequest$ = [3, n0, _GSTR,
-    0,
-    [_DS, _SN, _TC, _MSTS],
-    [1, 0, 0, 1]
-];
-var GetSessionTokenResponse$ = [3, n0, _GSTRe,
-    0,
-    [_C, _STU, _STS],
-    [[() => Credentials$, 0], 1, 1]
-];
-var GetWebIdentityTokenRequest$ = [3, n0, _GWITR,
-    0,
-    [_Au, _SA, _DS, _T],
-    [64 | 0, 0, 1, () => tagListType], 2
-];
-var GetWebIdentityTokenResponse$ = [3, n0, _GWITRe,
-    0,
-    [_WIT, _E],
-    [[() => webIdentityTokenType, 0], 4]
-];
-var PolicyDescriptorType$ = [3, n0, _PDT,
-    0,
-    [_a],
-    [0]
-];
-var ProvidedContext$ = [3, n0, _PCr,
-    0,
-    [_PAro, _CA],
-    [0, 0]
-];
-var Tag$ = [3, n0, _Ta,
-    0,
-    [_K, _V],
-    [0, 0], 2
-];
-var policyDescriptorListType = [1, n0, _pDLT,
-    0, () => PolicyDescriptorType$
-];
-var ProvidedContextsListType = [1, n0, _PCLT,
-    0, () => ProvidedContext$
-];
-var tagListType = [1, n0, _tLT,
-    0, () => Tag$
-];
-var AssumeRole$ = [9, n0, _AR,
-    0, () => AssumeRoleRequest$, () => AssumeRoleResponse$
-];
-var AssumeRoleWithSAML$ = [9, n0, _ARWSAML,
-    0, () => AssumeRoleWithSAMLRequest$, () => AssumeRoleWithSAMLResponse$
-];
-var AssumeRoleWithWebIdentity$ = [9, n0, _ARWWI,
-    0, () => AssumeRoleWithWebIdentityRequest$, () => AssumeRoleWithWebIdentityResponse$
-];
-var AssumeRoot$ = [9, n0, _ARs,
-    0, () => AssumeRootRequest$, () => AssumeRootResponse$
-];
-var DecodeAuthorizationMessage$ = [9, n0, _DAM,
-    0, () => DecodeAuthorizationMessageRequest$, () => DecodeAuthorizationMessageResponse$
-];
-var GetAccessKeyInfo$ = [9, n0, _GAKI,
-    0, () => GetAccessKeyInfoRequest$, () => GetAccessKeyInfoResponse$
-];
-var GetCallerIdentity$ = [9, n0, _GCI,
-    0, () => GetCallerIdentityRequest$, () => GetCallerIdentityResponse$
-];
-var GetDelegatedAccessToken$ = [9, n0, _GDAT,
-    0, () => GetDelegatedAccessTokenRequest$, () => GetDelegatedAccessTokenResponse$
-];
-var GetFederationToken$ = [9, n0, _GFT,
-    0, () => GetFederationTokenRequest$, () => GetFederationTokenResponse$
-];
-var GetSessionToken$ = [9, n0, _GST,
-    0, () => GetSessionTokenRequest$, () => GetSessionTokenResponse$
-];
-var GetWebIdentityToken$ = [9, n0, _GWIT,
-    0, () => GetWebIdentityTokenRequest$, () => GetWebIdentityTokenResponse$
-];
-
-const getRuntimeConfig$1 = (config) => {
-    return {
-        apiVersion: "2011-06-15",
-        base64Decoder: config?.base64Decoder ?? fromBase64,
-        base64Encoder: config?.base64Encoder ?? toBase64,
-        disableHostPrefix: config?.disableHostPrefix ?? false,
-        endpointProvider: config?.endpointProvider ?? defaultEndpointResolver,
-        extensions: config?.extensions ?? [],
-        httpAuthSchemeProvider: config?.httpAuthSchemeProvider ?? defaultSTSHttpAuthSchemeProvider,
-        httpAuthSchemes: config?.httpAuthSchemes ?? [
-            {
-                schemeId: "aws.auth#sigv4",
-                identityProvider: (ipc) => ipc.getIdentityProvider("aws.auth#sigv4"),
-                signer: new AwsSdkSigV4Signer(),
-            },
-            {
-                schemeId: "aws.auth#sigv4a",
-                identityProvider: (ipc) => ipc.getIdentityProvider("aws.auth#sigv4a"),
-                signer: new AwsSdkSigV4ASigner(),
-            },
-            {
-                schemeId: "smithy.api#noAuth",
-                identityProvider: (ipc) => ipc.getIdentityProvider("smithy.api#noAuth") || (async () => ({})),
-                signer: new NoAuthSigner(),
-            },
-        ],
-        logger: config?.logger ?? new NoOpLogger(),
-        protocol: config?.protocol ?? AwsQueryProtocol,
-        protocolSettings: config?.protocolSettings ?? {
-            defaultNamespace: "com.amazonaws.sts",
-            errorTypeRegistries,
-            xmlNamespace: "https://sts.amazonaws.com/doc/2011-06-15/",
-            version: "2011-06-15",
-            serviceTarget: "AWSSecurityTokenServiceV20110615",
-        },
-        serviceId: config?.serviceId ?? "STS",
-        sha256: config?.sha256 ?? Sha256,
-        signerConstructor: config?.signerConstructor ?? SignatureV4MultiRegion,
-        urlParser: config?.urlParser ?? parseUrl,
-        utf8Decoder: config?.utf8Decoder ?? fromUtf8,
-        utf8Encoder: config?.utf8Encoder ?? toUtf8,
-    };
-};
-
-const getRuntimeConfig = (config) => {
-    emitWarningIfUnsupportedVersion(process.version);
-    const defaultsMode = resolveDefaultsModeConfig(config);
-    const defaultConfigProvider = () => defaultsMode().then(loadConfigsForDefaultMode);
-    const clientSharedValues = getRuntimeConfig$1(config);
-    emitWarningIfUnsupportedVersion$1(process.version);
-    const loaderConfig = {
-        profile: config?.profile,
-        logger: clientSharedValues.logger,
-    };
-    return {
-        ...clientSharedValues,
-        ...config,
-        runtime: "node",
-        defaultsMode,
-        authSchemePreference: config?.authSchemePreference ?? loadConfig(NODE_AUTH_SCHEME_PREFERENCE_OPTIONS, loaderConfig),
-        bodyLengthChecker: config?.bodyLengthChecker ?? calculateBodyLength,
-        credentialDefaultProvider: config?.credentialDefaultProvider ?? defaultProvider,
-        defaultUserAgentProvider: config?.defaultUserAgentProvider ?? createDefaultUserAgentProvider({ serviceId: clientSharedValues.serviceId, clientVersion: packageInfo.version }),
-        httpAuthSchemes: config?.httpAuthSchemes ?? [
-            {
-                schemeId: "aws.auth#sigv4",
-                identityProvider: (ipc) => ipc.getIdentityProvider("aws.auth#sigv4") || (async (idProps) => await defaultProvider(idProps?.__config || {})()),
-                signer: new AwsSdkSigV4Signer(),
-            },
-            {
-                schemeId: "aws.auth#sigv4a",
-                identityProvider: (ipc) => ipc.getIdentityProvider("aws.auth#sigv4a"),
-                signer: new AwsSdkSigV4ASigner(),
-            },
-            {
-                schemeId: "smithy.api#noAuth",
-                identityProvider: (ipc) => ipc.getIdentityProvider("smithy.api#noAuth") || (async () => ({})),
-                signer: new NoAuthSigner(),
-            },
-        ],
-        maxAttempts: config?.maxAttempts ?? loadConfig(NODE_MAX_ATTEMPT_CONFIG_OPTIONS, config),
-        region: config?.region ?? loadConfig(NODE_REGION_CONFIG_OPTIONS, { ...NODE_REGION_CONFIG_FILE_OPTIONS, ...loaderConfig }),
-        requestHandler: NodeHttpHandler.create(config?.requestHandler ?? defaultConfigProvider),
-        retryMode: config?.retryMode ??
-            loadConfig({
-                ...NODE_RETRY_MODE_CONFIG_OPTIONS,
-                default: async () => (await defaultConfigProvider()).retryMode || DEFAULT_RETRY_MODE,
-            }, config),
-        sigv4aSigningRegionSet: config?.sigv4aSigningRegionSet ?? loadConfig(NODE_SIGV4A_CONFIG_OPTIONS, loaderConfig),
-        streamCollector: config?.streamCollector ?? streamCollector,
-        useDualstackEndpoint: config?.useDualstackEndpoint ?? loadConfig(NODE_USE_DUALSTACK_ENDPOINT_CONFIG_OPTIONS, loaderConfig),
-        useFipsEndpoint: config?.useFipsEndpoint ?? loadConfig(NODE_USE_FIPS_ENDPOINT_CONFIG_OPTIONS, loaderConfig),
-        userAgentAppId: config?.userAgentAppId ?? loadConfig(NODE_APP_ID_CONFIG_OPTIONS, loaderConfig),
-    };
-};
-
-const getHttpAuthExtensionConfiguration = (runtimeConfig) => {
-    const _httpAuthSchemes = runtimeConfig.httpAuthSchemes;
-    let _httpAuthSchemeProvider = runtimeConfig.httpAuthSchemeProvider;
-    let _credentials = runtimeConfig.credentials;
-    return {
-        setHttpAuthScheme(httpAuthScheme) {
-            const index = _httpAuthSchemes.findIndex((scheme) => scheme.schemeId === httpAuthScheme.schemeId);
-            if (index === -1) {
-                _httpAuthSchemes.push(httpAuthScheme);
-            }
-            else {
-                _httpAuthSchemes.splice(index, 1, httpAuthScheme);
-            }
-        },
-        httpAuthSchemes() {
-            return _httpAuthSchemes;
-        },
-        setHttpAuthSchemeProvider(httpAuthSchemeProvider) {
-            _httpAuthSchemeProvider = httpAuthSchemeProvider;
-        },
-        httpAuthSchemeProvider() {
-            return _httpAuthSchemeProvider;
-        },
-        setCredentials(credentials) {
-            _credentials = credentials;
-        },
-        credentials() {
-            return _credentials;
-        },
-    };
-};
-const resolveHttpAuthRuntimeConfig = (config) => {
-    return {
-        httpAuthSchemes: config.httpAuthSchemes(),
-        httpAuthSchemeProvider: config.httpAuthSchemeProvider(),
-        credentials: config.credentials(),
-    };
-};
-
-const resolveRuntimeExtensions = (runtimeConfig, extensions) => {
-    const extensionConfiguration = Object.assign(getAwsRegionExtensionConfiguration(runtimeConfig), getDefaultExtensionConfiguration(runtimeConfig), getHttpHandlerExtensionConfiguration(runtimeConfig), getHttpAuthExtensionConfiguration(runtimeConfig));
-    extensions.forEach((extension) => extension.configure(extensionConfiguration));
-    return Object.assign(runtimeConfig, resolveAwsRegionExtensionConfiguration(extensionConfiguration), resolveDefaultRuntimeConfig(extensionConfiguration), resolveHttpHandlerRuntimeConfig(extensionConfiguration), resolveHttpAuthRuntimeConfig(extensionConfiguration));
-};
-
-class STSClient extends Client {
-    config;
-    constructor(...[configuration]) {
-        const _config_0 = getRuntimeConfig(configuration || {});
-        super(_config_0);
-        this.initConfig = _config_0;
-        const _config_1 = resolveClientEndpointParameters(_config_0);
-        const _config_2 = resolveUserAgentConfig(_config_1);
-        const _config_3 = resolveRetryConfig(_config_2);
-        const _config_4 = resolveRegionConfig(_config_3);
-        const _config_5 = resolveHostHeaderConfig(_config_4);
-        const _config_6 = resolveEndpointConfig(_config_5);
-        const _config_7 = resolveHttpAuthSchemeConfig(_config_6);
-        const _config_8 = resolveRuntimeExtensions(_config_7, configuration?.extensions || []);
-        this.config = _config_8;
-        this.middlewareStack.use(getSchemaSerdePlugin(this.config));
-        this.middlewareStack.use(getUserAgentPlugin(this.config));
-        this.middlewareStack.use(getRetryPlugin(this.config));
-        this.middlewareStack.use(getContentLengthPlugin(this.config));
-        this.middlewareStack.use(getHostHeaderPlugin(this.config));
-        this.middlewareStack.use(getLoggerPlugin(this.config));
-        this.middlewareStack.use(getRecursionDetectionPlugin(this.config));
-        this.middlewareStack.use(getHttpAuthSchemeEndpointRuleSetPlugin(this.config, {
-            httpAuthSchemeParametersProvider: defaultSTSHttpAuthSchemeParametersProvider,
-            identityProviderConfigProvider: async (config) => new DefaultIdentityProviderConfig({
-                "aws.auth#sigv4": config.credentials,
-                "aws.auth#sigv4a": config.credentials,
-            }),
-        }));
-        this.middlewareStack.use(getHttpSigningPlugin(this.config));
-    }
-    destroy() {
-        super.destroy();
-    }
-}
-
-const command = makeBuilder(commonParams, "AWSSecurityTokenServiceV20110615", "STSClient", getEndpointPlugin);
-const _ep0 = {};
-const _mw0 = (Command, cs, config, o) => [];
-
-class AssumeRoleCommand extends command(_ep0, _mw0, "AssumeRole", AssumeRole$) {
-}
-
-class AssumeRoleWithSAMLCommand extends command(_ep0, _mw0, "AssumeRoleWithSAML", AssumeRoleWithSAML$) {
-}
-
-class AssumeRoleWithWebIdentityCommand extends command(_ep0, _mw0, "AssumeRoleWithWebIdentity", AssumeRoleWithWebIdentity$) {
-}
-
-class AssumeRootCommand extends command(_ep0, _mw0, "AssumeRoot", AssumeRoot$) {
-}
-
-class DecodeAuthorizationMessageCommand extends command(_ep0, _mw0, "DecodeAuthorizationMessage", DecodeAuthorizationMessage$) {
-}
-
-class GetAccessKeyInfoCommand extends command(_ep0, _mw0, "GetAccessKeyInfo", GetAccessKeyInfo$) {
-}
-
-class GetCallerIdentityCommand extends command(_ep0, _mw0, "GetCallerIdentity", GetCallerIdentity$) {
-}
-
-class GetDelegatedAccessTokenCommand extends command(_ep0, _mw0, "GetDelegatedAccessToken", GetDelegatedAccessToken$) {
-}
-
-class GetFederationTokenCommand extends command(_ep0, _mw0, "GetFederationToken", GetFederationToken$) {
-}
-
-class GetSessionTokenCommand extends command(_ep0, _mw0, "GetSessionToken", GetSessionToken$) {
-}
-
-class GetWebIdentityTokenCommand extends command(_ep0, _mw0, "GetWebIdentityToken", GetWebIdentityToken$) {
-}
-
-const commands = {
-    AssumeRoleCommand,
-    AssumeRoleWithSAMLCommand,
-    AssumeRoleWithWebIdentityCommand,
-    AssumeRootCommand,
-    DecodeAuthorizationMessageCommand,
-    GetAccessKeyInfoCommand,
-    GetCallerIdentityCommand,
-    GetDelegatedAccessTokenCommand,
-    GetFederationTokenCommand,
-    GetSessionTokenCommand,
-    GetWebIdentityTokenCommand,
-};
-class STS extends STSClient {
-}
-createAggregatedClient(commands, STS);
-
-const getAccountIdFromAssumedRoleUser = (assumedRoleUser) => {
-    if (typeof assumedRoleUser?.Arn === "string") {
-        const arnComponents = assumedRoleUser.Arn.split(":");
-        if (arnComponents.length > 4 && arnComponents[4] !== "") {
-            return arnComponents[4];
-        }
-    }
-    return undefined;
-};
-const resolveRegion = async (_region, _parentRegion, credentialProviderLogger, loaderConfig = {}) => {
-    const region = typeof _region === "function" ? await _region() : _region;
-    const parentRegion = typeof _parentRegion === "function" ? await _parentRegion() : _parentRegion;
-    let stsDefaultRegion = "";
-    const resolvedRegion = region ?? parentRegion ?? (stsDefaultRegion = await stsRegionDefaultResolver(loaderConfig)());
-    credentialProviderLogger?.debug?.("@aws-sdk/client-sts::resolveRegion", "accepting first of:", `${region} (credential provider clientConfig)`, `${parentRegion} (contextual client)`, `${stsDefaultRegion} (STS default: AWS_REGION, profile region, or us-east-1)`);
-    return resolvedRegion;
-};
-const getDefaultRoleAssumer$1 = (stsOptions, STSClient) => {
-    let stsClient;
-    let closureSourceCreds;
-    return async (sourceCreds, params) => {
-        closureSourceCreds = sourceCreds;
-        if (!stsClient) {
-            const { logger = stsOptions?.parentClientConfig?.logger, profile = stsOptions?.parentClientConfig?.profile, region, requestHandler = stsOptions?.parentClientConfig?.requestHandler, credentialProviderLogger, userAgentAppId = stsOptions?.parentClientConfig?.userAgentAppId, } = stsOptions;
-            const resolvedRegion = await resolveRegion(region, stsOptions?.parentClientConfig?.region, credentialProviderLogger, {
-                logger,
-                profile,
-            });
-            const isCompatibleRequestHandler = !isH2(requestHandler);
-            stsClient = new STSClient({
-                ...stsOptions,
-                userAgentAppId,
-                profile,
-                credentialDefaultProvider: () => async () => closureSourceCreds,
-                region: resolvedRegion,
-                requestHandler: isCompatibleRequestHandler ? requestHandler : undefined,
-                logger: logger,
-            });
-        }
-        const { Credentials, AssumedRoleUser } = await stsClient.send(new AssumeRoleCommand(params));
-        if (!Credentials || !Credentials.AccessKeyId || !Credentials.SecretAccessKey) {
-            throw new Error(`Invalid response from STS.assumeRole call with role ${params.RoleArn}`);
-        }
-        const accountId = getAccountIdFromAssumedRoleUser(AssumedRoleUser);
-        const credentials = {
-            accessKeyId: Credentials.AccessKeyId,
-            secretAccessKey: Credentials.SecretAccessKey,
-            sessionToken: Credentials.SessionToken,
-            expiration: Credentials.Expiration,
-            ...(Credentials.CredentialScope && { credentialScope: Credentials.CredentialScope }),
-            ...(accountId && { accountId }),
-        };
-        setCredentialFeature(credentials, "CREDENTIALS_STS_ASSUME_ROLE", "i");
-        return credentials;
-    };
-};
-const getDefaultRoleAssumerWithWebIdentity$1 = (stsOptions, STSClient) => {
-    let stsClient;
-    return async (params) => {
-        if (!stsClient) {
-            const { logger = stsOptions?.parentClientConfig?.logger, profile = stsOptions?.parentClientConfig?.profile, region, requestHandler = stsOptions?.parentClientConfig?.requestHandler, credentialProviderLogger, userAgentAppId = stsOptions?.parentClientConfig?.userAgentAppId, } = stsOptions;
-            const resolvedRegion = await resolveRegion(region, stsOptions?.parentClientConfig?.region, credentialProviderLogger, {
-                logger,
-                profile,
-            });
-            const isCompatibleRequestHandler = !isH2(requestHandler);
-            stsClient = new STSClient({
-                ...stsOptions,
-                userAgentAppId,
-                profile,
-                region: resolvedRegion,
-                requestHandler: isCompatibleRequestHandler ? requestHandler : undefined,
-                logger: logger,
-            });
-        }
-        const { Credentials, AssumedRoleUser } = await stsClient.send(new AssumeRoleWithWebIdentityCommand(params));
-        if (!Credentials || !Credentials.AccessKeyId || !Credentials.SecretAccessKey) {
-            throw new Error(`Invalid response from STS.assumeRoleWithWebIdentity call with role ${params.RoleArn}`);
-        }
-        const accountId = getAccountIdFromAssumedRoleUser(AssumedRoleUser);
-        const credentials = {
-            accessKeyId: Credentials.AccessKeyId,
-            secretAccessKey: Credentials.SecretAccessKey,
-            sessionToken: Credentials.SessionToken,
-            expiration: Credentials.Expiration,
-            ...(Credentials.CredentialScope && { credentialScope: Credentials.CredentialScope }),
-            ...(accountId && { accountId }),
-        };
-        if (accountId) {
-            setCredentialFeature(credentials, "RESOLVED_ACCOUNT_ID", "T");
-        }
-        setCredentialFeature(credentials, "CREDENTIALS_STS_ASSUME_ROLE_WEB_ID", "k");
-        return credentials;
-    };
-};
-const isH2 = (requestHandler) => {
-    return requestHandler?.metadata?.handlerProtocol === "h2";
-};
-
-const getCustomizableStsClientCtor = (baseCtor, customizations) => {
-    if (!customizations)
-        return baseCtor;
-    else
-        return class CustomizableSTSClient extends baseCtor {
-            constructor(config) {
-                super(config);
-                for (const customization of customizations) {
-                    this.middlewareStack.use(customization);
-                }
-            }
-        };
-};
-const getDefaultRoleAssumer = (stsOptions = {}, stsPlugins) => getDefaultRoleAssumer$1(stsOptions, getCustomizableStsClientCtor(STSClient, stsPlugins));
-const getDefaultRoleAssumerWithWebIdentity = (stsOptions = {}, stsPlugins) => getDefaultRoleAssumerWithWebIdentity$1(stsOptions, getCustomizableStsClientCtor(STSClient, stsPlugins));
-const decorateDefaultCredentialProvider = (provider) => (input) => provider({
-    roleAssumer: getDefaultRoleAssumer(input),
-    roleAssumerWithWebIdentity: getDefaultRoleAssumerWithWebIdentity(input),
-    ...input,
-});
-
-__webpack_unused_export__ = AssumeRole$;
-__webpack_unused_export__ = AssumeRoleCommand;
-__webpack_unused_export__ = AssumeRoleRequest$;
-__webpack_unused_export__ = AssumeRoleResponse$;
-__webpack_unused_export__ = AssumeRoleWithSAML$;
-__webpack_unused_export__ = AssumeRoleWithSAMLCommand;
-__webpack_unused_export__ = AssumeRoleWithSAMLRequest$;
-__webpack_unused_export__ = AssumeRoleWithSAMLResponse$;
-__webpack_unused_export__ = AssumeRoleWithWebIdentity$;
-__webpack_unused_export__ = AssumeRoleWithWebIdentityCommand;
-__webpack_unused_export__ = AssumeRoleWithWebIdentityRequest$;
-__webpack_unused_export__ = AssumeRoleWithWebIdentityResponse$;
-__webpack_unused_export__ = AssumeRoot$;
-__webpack_unused_export__ = AssumeRootCommand;
-__webpack_unused_export__ = AssumeRootRequest$;
-__webpack_unused_export__ = AssumeRootResponse$;
-__webpack_unused_export__ = AssumedRoleUser$;
-__webpack_unused_export__ = Credentials$;
-__webpack_unused_export__ = DecodeAuthorizationMessage$;
-__webpack_unused_export__ = DecodeAuthorizationMessageCommand;
-__webpack_unused_export__ = DecodeAuthorizationMessageRequest$;
-__webpack_unused_export__ = DecodeAuthorizationMessageResponse$;
-__webpack_unused_export__ = ExpiredTokenException;
-__webpack_unused_export__ = ExpiredTokenException$;
-__webpack_unused_export__ = ExpiredTradeInTokenException;
-__webpack_unused_export__ = ExpiredTradeInTokenException$;
-__webpack_unused_export__ = FederatedUser$;
-__webpack_unused_export__ = GetAccessKeyInfo$;
-__webpack_unused_export__ = GetAccessKeyInfoCommand;
-__webpack_unused_export__ = GetAccessKeyInfoRequest$;
-__webpack_unused_export__ = GetAccessKeyInfoResponse$;
-__webpack_unused_export__ = GetCallerIdentity$;
-__webpack_unused_export__ = GetCallerIdentityCommand;
-__webpack_unused_export__ = GetCallerIdentityRequest$;
-__webpack_unused_export__ = GetCallerIdentityResponse$;
-__webpack_unused_export__ = GetDelegatedAccessToken$;
-__webpack_unused_export__ = GetDelegatedAccessTokenCommand;
-__webpack_unused_export__ = GetDelegatedAccessTokenRequest$;
-__webpack_unused_export__ = GetDelegatedAccessTokenResponse$;
-__webpack_unused_export__ = GetFederationToken$;
-__webpack_unused_export__ = GetFederationTokenCommand;
-__webpack_unused_export__ = GetFederationTokenRequest$;
-__webpack_unused_export__ = GetFederationTokenResponse$;
-__webpack_unused_export__ = GetSessionToken$;
-__webpack_unused_export__ = GetSessionTokenCommand;
-__webpack_unused_export__ = GetSessionTokenRequest$;
-__webpack_unused_export__ = GetSessionTokenResponse$;
-__webpack_unused_export__ = GetWebIdentityToken$;
-__webpack_unused_export__ = GetWebIdentityTokenCommand;
-__webpack_unused_export__ = GetWebIdentityTokenRequest$;
-__webpack_unused_export__ = GetWebIdentityTokenResponse$;
-__webpack_unused_export__ = IDPCommunicationErrorException;
-__webpack_unused_export__ = IDPCommunicationErrorException$;
-__webpack_unused_export__ = IDPRejectedClaimException;
-__webpack_unused_export__ = IDPRejectedClaimException$;
-__webpack_unused_export__ = InvalidAuthorizationMessageException;
-__webpack_unused_export__ = InvalidAuthorizationMessageException$;
-__webpack_unused_export__ = InvalidIdentityTokenException;
-__webpack_unused_export__ = InvalidIdentityTokenException$;
-__webpack_unused_export__ = JWTPayloadSizeExceededException;
-__webpack_unused_export__ = JWTPayloadSizeExceededException$;
-__webpack_unused_export__ = MalformedPolicyDocumentException;
-__webpack_unused_export__ = MalformedPolicyDocumentException$;
-__webpack_unused_export__ = OutboundWebIdentityFederationDisabledException;
-__webpack_unused_export__ = OutboundWebIdentityFederationDisabledException$;
-__webpack_unused_export__ = PackedPolicyTooLargeException;
-__webpack_unused_export__ = PackedPolicyTooLargeException$;
-__webpack_unused_export__ = PolicyDescriptorType$;
-__webpack_unused_export__ = ProvidedContext$;
-__webpack_unused_export__ = RegionDisabledException;
-__webpack_unused_export__ = RegionDisabledException$;
-__webpack_unused_export__ = STS;
-exports.iM = STSClient;
-__webpack_unused_export__ = STSServiceException;
-__webpack_unused_export__ = STSServiceException$;
-__webpack_unused_export__ = SessionDurationEscalationException;
-__webpack_unused_export__ = SessionDurationEscalationException$;
-__webpack_unused_export__ = Tag$;
-__webpack_unused_export__ = decorateDefaultCredentialProvider;
-__webpack_unused_export__ = errorTypeRegistries;
-__webpack_unused_export__ = getDefaultRoleAssumer;
-__webpack_unused_export__ = getDefaultRoleAssumerWithWebIdentity;
-
-
-/***/ }),
-
 /***/ 4766:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
@@ -66957,7 +65710,7 @@ __nccwpck_require__.d(__webpack_exports__, {
   WW: () => (/* binding */ terminateSession)
 });
 
-// UNUSED EXPORTS: getCallerArn, sendPublicKey, waitForInstanceOnline
+// UNUSED EXPORTS: sendPublicKey, waitForInstanceOnline
 
 // EXTERNAL MODULE: ./node_modules/.pnpm/@actions+core@3.0.1/node_modules/@actions/core/lib/core.js + 11 modules
 var lib_core = __nccwpck_require__(6011);
@@ -66965,13 +65718,10 @@ var lib_core = __nccwpck_require__(6011);
 var dist_cjs = __nccwpck_require__(5802);
 // EXTERNAL MODULE: ./node_modules/.pnpm/@aws-sdk+client-ssm@3.1135.0/node_modules/@aws-sdk/client-ssm/dist-cjs/index.js
 var client_ssm_dist_cjs = __nccwpck_require__(2140);
-// EXTERNAL MODULE: ./node_modules/.pnpm/@aws-sdk+client-sts@3.1135.0/node_modules/@aws-sdk/client-sts/dist-cjs/index.js
-var client_sts_dist_cjs = __nccwpck_require__(1096);
 ;// CONCATENATED MODULE: external "node:timers/promises"
 const promises_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:timers/promises");
 ;// CONCATENATED MODULE: ./src/lib/aws.js
-// AWS SDK v3 control-plane calls: SSM registration and sessions, EC2 Instance Connect, STS.
-
+// AWS SDK v3 control-plane calls: SSM registration and sessions, EC2 Instance Connect.
 
 
 
@@ -66981,7 +65731,6 @@ const promises_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.ur
 const createClients = (region) => ({
   ssm: new client_ssm_dist_cjs/* SSMClient */.jBj({ region }),
   eic: new dist_cjs/* EC2InstanceConnectClient */.VJ({ region }),
-  sts: new client_sts_dist_cjs/* STSClient */.iM({ region }),
 })
 
 const describeInstance = async (ssm, instanceId) => {
@@ -67047,14 +65796,13 @@ const waitForInstanceOnline = async ({ ssm, instanceId, timeoutSeconds }) => {
   )
 }
 
-const sendPublicKey = async ({ eic, instanceId, osUser, publicKey, availabilityZone }) => {
+const sendPublicKey = async ({ eic, instanceId, osUser, publicKey }) => {
   try {
     const response = await eic.send(
       new SendSSHPublicKeyCommand({
         InstanceId: instanceId,
         InstanceOSUser: osUser,
         SSHPublicKey: publicKey,
-        ...(availabilityZone ? { AvailabilityZone: availabilityZone } : {}),
       }),
     )
     core.debug(`SendSSHPublicKey requestId=${response.RequestId ?? 'unknown'}`)
@@ -67089,12 +65837,6 @@ const sendPublicKey = async ({ eic, instanceId, osUser, publicKey, availabilityZ
   }
 }
 
-const getCallerArn = async (sts) => {
-  const { Arn } = await sts.send(new GetCallerIdentityCommand({}))
-  core.debug(`Caller identity resolved to ${Arn ?? 'unknown'}`)
-  return Arn ?? null
-}
-
 const listActiveSessions = async ({ ssm, target }) => {
   const sessions = []
   let nextToken
@@ -67127,6 +65869,7 @@ const terminateSession = async ({ ssm, sessionId }) => {
 /***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __nccwpck_require__) => {
 
 /* harmony export */ __nccwpck_require__.d(__webpack_exports__, {
+/* harmony export */   aK: () => (/* binding */ quoteSshPath),
 /* harmony export */   wC: () => (/* binding */ removeBlock)
 /* harmony export */ });
 /* unused harmony exports ensureSshDir, stripBlock, findConflictingHost, renderBlock, upsertBlock */
@@ -67148,6 +65891,12 @@ const blockPattern = (alias) =>
     `(?:^|\\n)[ \\t]*${escapeRegExp(beginMarker(alias))}[\\s\\S]*?${escapeRegExp(endMarker(alias))}[ \\t]*(?=\\n|$)`,
     'g',
   )
+
+// ssh parses the whole config before it uses any of it, so an unquoted space is not a bad directive, it
+// is a syntax error that takes every host in the file down with it. A bare % starts a token (%d, %h, %C)
+// and fails to expand on a home directory like /home/user%40corp. Quoting carries both; readInputs rejects
+// the characters it cannot carry.
+const quoteSshPath = (value) => `"${value.replaceAll('%', '%%')}"`
 
 const readIfPresent = async (file) => {
   try {
@@ -67182,6 +65931,7 @@ const renderBlock = ({
   identityFile,
   knownHostsFile,
   controlPath,
+  sessionReason,
 }) =>
   [
     beginMarker(hostAlias),
@@ -67189,19 +65939,25 @@ const renderBlock = ({
     `  HostName ${instanceId}`,
     `  User ${osUser}`,
     `  Port ${port}`,
-    `  IdentityFile ${identityFile}`,
+    `  IdentityFile ${quoteSshPath(identityFile)}`,
     '  IdentitiesOnly yes',
     '  StrictHostKeyChecking accept-new',
-    `  UserKnownHostsFile ${knownHostsFile}`,
+    `  UserKnownHostsFile ${quoteSshPath(knownHostsFile)}`,
     '  ServerAliveInterval 30',
     ...(controlPath
-      ? ['  ControlMaster auto', `  ControlPath ${controlPath}`, '  ControlPersist 8h']
+      ? ['  ControlMaster auto', `  ControlPath ${quoteSshPath(controlPath)}`, '  ControlPersist 1h']
       : []),
     // ssh runs ProxyCommand itself, once per connection, and pipes stdin/stdout through it. The AWS CLI is
     // what orchestrates session-manager-plugin to turn the StartSession WebSocket into that byte stream, so
     // this cannot be replaced by an SDK call. --region is explicit so it does not depend on ambient env
-    // at connection time.
-    `  ProxyCommand sh -c "aws ssm start-session --target %h --document-name AWS-StartSSHSession --parameters 'portNumber=%p' --region ${region}"`,
+    // at connection time. --reason stamps every session this run opens, which is what lets the post step
+    // terminate its own and nothing else; the value carries no quote or % that would break either quoting
+    // layer or ssh's token expansion.
+    `  ProxyCommand sh -c "aws ssm start-session --target %h --document-name AWS-StartSSHSession --parameters 'portNumber=%p' --region ${region} --reason '${sessionReason}'"`,
+    // upsertBlock writes this block first in the file, so the Host stanza has to be closed again here.
+    // Without it, directives the user kept above their first Host line, which applied to every host,
+    // would be read as part of this stanza and silently stop applying to the rest of them.
+    'Match all',
     endMarker(hostAlias),
   ].join('\n')
 
@@ -67228,9 +65984,14 @@ const upsertBlock = async ({ sshConfigPath, hostAlias, block }) => {
     )
   }
 
-  const prefix = withoutOurs.trim() ? `${withoutOurs.replace(/\n*$/, '')}\n\n` : ''
-  await writeAtomic(sshConfigPath, `${prefix}${block}\n`)
+  // ssh keeps the first value it obtains for each parameter, so the block goes at the top of the file.
+  // Appended last, any earlier stanza matching the alias -- a `Host *` on a self-hosted runner, say --
+  // would outrank User and ProxyCommand, and the connection would silently bypass Session Manager.
+  const rest = withoutOurs.replace(/^\n+/, '').replace(/\n*$/, '')
+  const suffix = rest.trim() ? `\n${rest}\n` : ''
+  await writeAtomic(sshConfigPath, `${block}\n${suffix}`)
   await chmod(sshConfigPath, 0o600)
+  return withoutOurs !== existing
 }
 
 const removeBlock = async ({ sshConfigPath, hostAlias }) => {
@@ -67258,7 +66019,6 @@ const removeBlock = async ({ sshConfigPath, hostAlias }) => {
 // State keys shared between the main and post steps.
 
 const STATE = {
-  started: 'started-at',
   region: 'region',
   instanceId: 'instance-id',
   hostAlias: 'host-alias',
@@ -67267,7 +66027,7 @@ const STATE = {
   publicKeyPath: 'public-key-path',
   knownHostsFile: 'known-hosts-file',
   controlPath: 'control-path',
-  callerArn: 'caller-arn',
+  sessionReason: 'session-reason',
   terminateSessions: 'terminate-sessions',
   cleanup: 'cleanup',
 }
@@ -67309,7 +66069,9 @@ const closeControlMaster = async ({ hostAlias, controlPath }) => {
   const ssh = await _actions_io__WEBPACK_IMPORTED_MODULE_2__/* .which */ .K7('ssh', false)
   if (!ssh || !controlPath) return
 
-  const exitCode = await _actions_exec__WEBPACK_IMPORTED_MODULE_1__/* .exec */ .m(ssh, ['-O', 'exit', '-o', `ControlPath=${controlPath}`, hostAlias], {
+  // -o goes through the config parser too, so the path needs the same quoting it gets in the block.
+  const args = ['-O', 'exit', '-o', `ControlPath=${(0,_lib_ssh_config_js__WEBPACK_IMPORTED_MODULE_5__/* .quoteSshPath */ .aK)(controlPath)}`, hostAlias]
+  const exitCode = await _actions_exec__WEBPACK_IMPORTED_MODULE_1__/* .exec */ .m(ssh, args, {
     silent: true,
     ignoreReturnCode: true,
   })
@@ -67317,31 +66079,22 @@ const closeControlMaster = async ({ hostAlias, controlPath }) => {
   await (0,node_fs_promises__WEBPACK_IMPORTED_MODULE_3__.rm)(controlPath, { force: true })
 }
 
-// Only sessions owned by this job's caller identity and started at or after the main step are terminated.
-// A looser filter would kill a concurrent job's session when several jobs share a self-hosted runner and
-// assume the same role with the same role-session-name.
-const terminateOwnSessions = async ({ region, instanceId, callerArn, startedAt }) => {
-  if (!callerArn) {
-    _actions_core__WEBPACK_IMPORTED_MODULE_0__/* .warning */ .$e('No caller identity was recorded, so active SSM sessions were left alone.')
-    return
-  }
-
-  const since = Date.parse(startedAt)
-  if (Number.isNaN(since)) {
-    _actions_core__WEBPACK_IMPORTED_MODULE_0__/* .warning */ .$e('No valid start timestamp was recorded, so active SSM sessions were left alone.')
+// The main step stamped every session it opens with --reason, so ownership is an exact match rather than
+// a guess from the caller identity and a start time, which cannot separate two jobs sharing a role.
+const terminateOwnSessions = async ({ region, instanceId, sessionReason }) => {
+  if (!sessionReason) {
+    _actions_core__WEBPACK_IMPORTED_MODULE_0__/* .warning */ .$e('No session marker was recorded, so active SSM sessions were left alone.')
     return
   }
 
   const { ssm } = (0,_lib_aws_js__WEBPACK_IMPORTED_MODULE_4__/* .createClients */ .hP)(region)
   const sessions = await (0,_lib_aws_js__WEBPACK_IMPORTED_MODULE_4__/* .listActiveSessions */ .cs)({ ssm, target: instanceId })
-  const own = sessions.filter(
-    (session) => session.Owner === callerArn && session.StartDate instanceof Date && session.StartDate.getTime() >= since,
-  )
+  const own = sessions.filter((session) => session.Reason === sessionReason)
 
-  if (own.length === 0) {
-    _actions_core__WEBPACK_IMPORTED_MODULE_0__/* .info */ .pq('No active SSM sessions from this job were left open.')
-    return
-  }
+  // The totals are worth logging: if the marker ever stopped coming back, this is where it would show.
+  _actions_core__WEBPACK_IMPORTED_MODULE_0__/* .info */ .pq(`${sessions.length} active session(s) on ${instanceId}, ${own.length} opened by this job.`)
+
+  if (own.length === 0) return
 
   for (const session of own) {
     await attempt(`Terminating session ${session.SessionId}`, async () => {
@@ -67371,8 +66124,7 @@ const run = async () => {
       terminateOwnSessions({
         region: state('region'),
         instanceId: state('instanceId'),
-        callerArn: state('callerArn'),
-        startedAt: state('started'),
+        sessionReason: state('sessionReason'),
       }),
     )
   }
