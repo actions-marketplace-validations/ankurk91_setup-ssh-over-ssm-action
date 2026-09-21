@@ -61,10 +61,18 @@ jobs:
           EXPECT_MULTIPLEX: ${{ matrix.expect-multiplex }}
         run: test/e2e/run.sh
 
+      # A glob rather than a list: every check the rig gains writes its own log, and a hardcoded
+      # three would silently hide the one that failed.
       - name: Show action logs on failure
         if: failure()
         run: |
-          for log in main post stub; do
-            echo "----- $log.log -----"
-            cat "${{ matrix.run-dir }}/$log.log" 2>/dev/null || echo '(absent)'
+          shopt -s nullglob
+          logs=("${{ matrix.run-dir }}"/*.log)
+          if [ "${#logs[@]}" -eq 0 ]; then
+            echo 'no logs were written'
+            exit 0
+          fi
+          for log in "${logs[@]}"; do
+            echo "----- $(basename "$log") -----"
+            cat "$log"
           done

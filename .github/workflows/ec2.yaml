@@ -49,6 +49,25 @@ jobs:
           ssh ssm-target 'uptime; echo; id; hostname -f'
           echo "--- end ---"
 
+      # The only real-AWS check that DescribeSessions returns the --reason the ProxyCommand set. The
+      # master opened above is still up, so the session is Active while this runs.
+      - name: Verify the session carries this run's marker
+        env:
+          INSTANCE_ID: ${{ vars.EC2_INSTANCE_ID }}
+          MARKER: setup-ssh-over-ssm-action/${{ github.run_id }}/${{ github.run_attempt }}/
+        run: |
+          if ! reasons="$(aws ssm describe-sessions --state Active \
+            --filters "key=Target,value=$INSTANCE_ID" \
+            --query 'Sessions[].Reason' --output text)"; then
+            echo 'describe-sessions itself failed: credentials or permissions, not the marker'
+            exit 1
+          fi
+          echo "active session reasons: $reasons"
+          case "$reasons" in
+            *"$MARKER"*) echo 'Session carries this run marker' ;;
+            *) echo "No active session carries $MARKER"; exit 1 ;;
+          esac
+
       - name: SSH to EC2 (expect failure)
         run: |
           set +e

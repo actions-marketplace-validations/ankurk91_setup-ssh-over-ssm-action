@@ -260,6 +260,10 @@ check_run_scope() {
   after="$(sha256sum < "$first" 2>/dev/null | cut -d' ' -f1)"
 
   ok 'each run gets its own key path' "$([[ -n "$first" && "$first" != "$second" ]] && echo differ)" 'differ'
+  ok 'the first run does not warn about the alias' \
+    "$(grep -c 'has been replaced' "$RUN_DIR/main.a.log")" '0'
+  ok 'the second run warns that it replaced the block' \
+    "$(grep -c 'has been replaced' "$RUN_DIR/main.b.log")" '1'
   ok 'the second run leaves the first run key alone' "${after:-missing}" "${before:-unset}"
   ok 'the second run key exists' "$([[ -f "$second" ]] && echo yes)" 'yes'
 
@@ -344,6 +348,29 @@ run_with_provided_key() {
     node "$REPO_DIR/dist/main/index.js" > "$RUN_DIR/$slug.log" 2>&1
 }
 
+# first.last is ordinary on an AD-joined instance and was rejected until the pattern was widened. The
+# value lands unquoted in the User directive, so it is worth pinning what ssh makes of it.
+check_os_user() {
+  local home="$RUN_DIR/home-osuser" state_file="$RUN_DIR/osuser.state" log_file="$RUN_DIR/osuser.log"
+  local -a env_pairs=()
+  local exit_code
+
+  echo '== os-user =='
+
+  mapfile -t env_pairs < <(action_env)
+  : > "$state_file"
+
+  env -i "${env_pairs[@]}" "HOME=$home" "GITHUB_STATE=$state_file" 'INPUT_OS-USER=first.last' \
+    node "$REPO_DIR/dist/main/index.js" > "$log_file" 2>&1
+  exit_code=$?
+
+  ok 'main accepts a dotted user' "$exit_code" '0'
+  ok 'ssh resolves the dotted user' \
+    "$(ssh -G -F "$home/.ssh/config" "$HOST_ALIAS" 2>/dev/null | sed -n 's/^user //p')" 'first.last'
+
+  sed -n 's/^::error:://p' "$log_file"
+}
+
 # Runs the main step against its own state file and echoes the key path it recorded.
 main_step_key_path() {
   local state_file="$1" log_file="$2"
@@ -363,7 +390,7 @@ main_step_key_path() {
 
 check_transport() {
   local -a ssh_opts=( -F "$RUN_DIR/home/.ssh/config" -o BatchMode=yes )
-  local output exit_code local_sum remote_sum socket_count
+  local output exit_code local_sum remote_sum socket_count persist
 
   echo '== the real transport =='
 
@@ -389,10 +416,13 @@ check_transport() {
   ok 'scp pull works' "$(cat "$RUN_DIR/back.txt" 2>/dev/null)" 'hello from the runner'
 
   socket_count="$(count_matching "$RUN_DIR/home/.ssh/*.sock")"
+  persist="$(sed -n 's/^  ControlPersist //p' "$RUN_DIR/home/.ssh/config")"
   if [[ "$EXPECT_MULTIPLEX" == 'yes' ]]; then
     ok 'ControlMaster socket created' "$((socket_count > 0 ? 1 : 0))" '1'
+    ok 'the block sets ControlPersist' "$persist" '1h'
   else
     ok 'ControlMaster socket absent (path too long)' "$socket_count" '0'
+    ok 'no ControlPersist without multiplexing' "$persist" ''
   fi
 }
 
@@ -498,6 +528,7 @@ main() {
   check_run_scope
   check_awkward_home
   check_provided_key
+  check_os_user
   report_stub_calls
 
   echo
