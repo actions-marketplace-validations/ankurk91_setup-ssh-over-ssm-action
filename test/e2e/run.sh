@@ -295,6 +295,48 @@ awkward_home_case() {
   sed -n 's/^::error:://p' "$log_file"
 }
 
+# An encrypted key carries the same BEGIN line as a plain one, so the input regex cannot tell them apart
+# and only ssh-keygen can. Unchecked, the action reports success and the failure lands steps later as
+# "Permission denied (publickey)". The plain key runs first so the check cannot pass by rejecting both.
+check_provided_key() {
+  local exit_code
+
+  echo '== provided key =='
+
+  ssh-keygen -q -t ed25519 -N '' -C e2e -f "$RUN_DIR/plain_key" </dev/null
+  ssh-keygen -q -t ed25519 -N 'hunter2' -C e2e -f "$RUN_DIR/encrypted_key" </dev/null
+
+  run_with_provided_key "$RUN_DIR/plain_key" 'plain'
+  exit_code=$?
+  ok 'main accepts a key with no passphrase' "$exit_code" '0'
+  ok 'the plain key gets a config block' \
+    "$([[ -e "$RUN_DIR/home-plain/.ssh/config" ]] && echo present || echo absent)" 'present'
+
+  run_with_provided_key "$RUN_DIR/encrypted_key" 'passphrase'
+  exit_code=$?
+  ok 'main fails on a passphrase-protected key' "$((exit_code == 0 ? 0 : 1))" '1'
+  ok 'the failure names the passphrase' \
+    "$(grep -c '^::error::.*passphrase' "$RUN_DIR/passphrase.log")" '1'
+  # The key is written before it is checked, but the config block comes after, so nothing was published.
+  # A literal path is not a glob, so count_matching would report it present either way.
+  ok 'no config block was written' \
+    "$([[ -e "$RUN_DIR/home-passphrase/.ssh/config" ]] && echo present || echo absent)" 'absent'
+}
+
+# Runs the main step with "private-key" set from a file, in a HOME of its own.
+run_with_provided_key() {
+  local key_file="$1" slug="$2"
+  local -a env_pairs=()
+
+  mapfile -t env_pairs < <(action_env)
+  : > "$RUN_DIR/$slug.state"
+
+  # The key holds newlines, so it cannot travel through action_env, which is read line by line.
+  env -i "${env_pairs[@]}" "HOME=$RUN_DIR/home-$slug" "GITHUB_STATE=$RUN_DIR/$slug.state" \
+    "INPUT_PRIVATE-KEY=$(cat "$key_file")" \
+    node "$REPO_DIR/dist/main/index.js" > "$RUN_DIR/$slug.log" 2>&1
+}
+
 # Runs the main step against its own state file and echoes the key path it recorded.
 main_step_key_path() {
   local state_file="$1" log_file="$2"
@@ -412,6 +454,7 @@ main() {
   check_post_step
   check_run_scope
   check_awkward_home
+  check_provided_key
   report_stub_calls
 
   echo

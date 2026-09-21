@@ -135,7 +135,7 @@ anything that speaks SSH picks it up without modification:
 | `region`             | no       | `AWS_REGION`, then `AWS_DEFAULT_REGION` | Region the instance runs in                                                                  |
 | `port`               | no       | `22`                                    | SSH port on the instance                                                                     |
 | `key-type`           | no       | `ed25519`                               | Type of key to generate. `ed25519`, or `rsa` at 4096 bits                                    |
-| `private-key`        | no       | —                                       | Use your own OpenSSH key instead of an ephemeral one. Skips EC2 Instance Connect             |
+| `private-key`        | no       | —                                       | Your own OpenSSH key, no passphrase, instead of an ephemeral one. Skips EC2 Instance Connect |
 | `check-instance`     | no       | `true`                                  | Verify the instance is Online in SSM before configuring SSH                                  |
 | `wait-timeout`       | no       | `30`                                    | Seconds to wait for the instance to come Online. `0` fails immediately instead of waiting    |
 | `terminate-sessions` | no       | `true`                                  | When the job ends, close the SSM sessions it opened                                          |

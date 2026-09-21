@@ -42,7 +42,7 @@ export const keyPaths = ({ sshDir, hostAlias, instanceId }) => {
   }
 }
 
-export const generateKeyPair = async ({ privateKeyPath, publicKeyPath, keyType, comment }) => {
+const requireSshKeygen = async () => {
   const sshKeygen = await io.which('ssh-keygen', false)
   if (!sshKeygen) {
     throw new Error(
@@ -50,6 +50,34 @@ export const generateKeyPair = async ({ privateKeyPath, publicKeyPath, keyType, 
         '(they are preinstalled on GitHub-hosted runners).',
     )
   }
+  return sshKeygen
+}
+
+// An encrypted key carries the same BEGIN line as a plain one, so nothing short of reading it tells them
+// apart. ssh runs non-interactively on the runner, with no agent and no tty, so a key that needs a
+// passphrase fails several steps later as "Permission denied (publickey)", which points at IAM or at the
+// 60-second key window instead of at the key. -P '' makes ssh-keygen fail rather than prompt.
+const assertUsableWithoutPassphrase = async (privateKeyPath) => {
+  const sshKeygen = await requireSshKeygen()
+  let stderr = ''
+
+  const exitCode = await exec.exec(sshKeygen, ['-y', '-P', '', '-f', privateKeyPath], {
+    silent: true,
+    ignoreReturnCode: true,
+    listeners: { stderr: (chunk) => { stderr += chunk.toString() } },
+  })
+  if (exitCode === 0) return
+
+  const detail = stderr.trim().split('\n').at(-1) || `ssh-keygen exited with code ${exitCode}`
+  throw new Error(
+    `Input "private-key" could not be read by ssh-keygen: ${detail}. The usual cause is a passphrase, ` +
+      'which this action cannot supply. Strip it with ssh-keygen -p -P \'<old passphrase>\' -N \'\' -f <key>, ' +
+      'or copy the secret again if it was truncated.',
+  )
+}
+
+export const generateKeyPair = async ({ privateKeyPath, publicKeyPath, keyType, comment }) => {
+  const sshKeygen = await requireSshKeygen()
 
   await rm(privateKeyPath, { force: true })
   await rm(publicKeyPath, { force: true })
@@ -79,4 +107,5 @@ export const writeProvidedKey = async ({ privateKeyPath, privateKey }) => {
   maskPrivateKey(privateKey)
   await writeFile(privateKeyPath, privateKey, { mode: 0o600 })
   await chmod(privateKeyPath, 0o600)
+  await assertUsableWithoutPassphrase(privateKeyPath)
 }

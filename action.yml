@@ -31,7 +31,7 @@ inputs:
     required: false
     default: 'ed25519'
   private-key:
-    description: 'An existing OpenSSH private key to use instead of generating one. Disables EC2 Instance Connect.'
+    description: 'An existing OpenSSH private key to use instead of generating one. Must have no passphrase. Disables EC2 Instance Connect.'
     required: false
     default: ''
   check-instance:
