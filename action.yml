@@ -11,7 +11,7 @@ inputs:
     description: 'Target instance ID, for example i-0123456789abcdef0 or mi-0123456789abcdef0.'
     required: true
   os-user:
-    description: 'Remote POSIX user to authenticate as. Use ec2-user for Amazon Linux AMIs.'
+    description: 'Remote user to authenticate as. Use ec2-user for Amazon Linux AMIs.'
     required: false
     default: 'ubuntu'
   host-alias:

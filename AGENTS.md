@@ -51,7 +51,7 @@ handling or the post step.
 ## Code style
 
 - No comments that restate what the code does. Comment only non-obvious behaviour: the 60-second EC2
-  Instance Connect key window, the session-ownership filter in the post step, why `ProxyCommand` must stay
+  Instance Connect key window, the session marker the post step matches on, why `ProxyCommand` must stay
   the AWS CLI rather than an SDK call.
 - No historical or explanatory prose in code.
 - Small functions, early returns, no deep nesting.

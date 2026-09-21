@@ -71,9 +71,11 @@ Things that are easy to get wrong and produce confusing failures.
   copied `arn:aws:ssm:*:*:session/${aws:username}-*` does not work: AWS documents that the `${aws:username}`
   method "doesn't work for accounts that grant access to AWS using federated IDs". Substituting
   `${aws:userid}` does not fix it either, because session IDs are built from the role session name alone
-  while `${aws:userid}` expands to `<role-id>:<role-session-name>`. Use the tag condition above, which matches
-  the `aws:ssmmessages:session-id` tag Session Manager stamps on every session. Getting this wrong makes the
-  post step log `AccessDeniedException` and leave sessions running.
+  while `${aws:userid}` expands to `<role-id>:<role-session-name>`. Use the tag condition above instead. The
+  `aws:ssmmessages:session-id` tag AWS stamps on every session holds the *caller's* ID, not the session ID:
+  `<role-id>:<role-session-name>` for an assumed role and the user ID for an IAM user, so `${aws:userid}`
+  matches either. Getting this wrong makes the post step log `AccessDeniedException` and leave sessions
+  running.
 - **The instance resource for `ssm:StartSession` is an EC2 ARN**, `arn:aws:ec2:…:instance/…`, not an SSM one.
 - **`ssm:DescribeInstanceInformation` and `ssm:DescribeSessions` support no resource-level permissions.** They
   must be granted on `"*"`; there is no way to narrow them to a single instance.
@@ -87,7 +89,7 @@ Few cases need more than that.
 - **Session logging.** Also allow `s3:PutObject` on the log bucket, `kms:GenerateDataKey` on the key if the
   bucket or the session is encrypted, and `logs:CreateLogStream`, `logs:PutLogEvents` and
   `logs:DescribeLogStreams` on the CloudWatch log group. It does not capture SSH sessions — see the
-  [README caveats](../README.md#caveats).
+  [caveats](Caveats.md).
 - **No internet egress.** Create VPC interface endpoints for `com.amazonaws.<region>.ssm`,
   `com.amazonaws.<region>.ssmmessages` and `com.amazonaws.<region>.ec2messages`, and allow 443 from the
   instance to the endpoint security group. Without them the instance never reaches `Online`.
