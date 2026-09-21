@@ -133,8 +133,21 @@ const run = async () => {
       controlPath: multiplex ? paths.controlPath : null,
     })
     core.debug(block)
-    await upsertBlock({ sshConfigPath: config.sshConfigPath, hostAlias: config.hostAlias, block })
+    const replaced = await upsertBlock({
+      sshConfigPath: config.sshConfigPath,
+      hostAlias: config.hostAlias,
+      block,
+    })
     core.info(`Updated ${config.sshConfigPath}.`)
+    // Key material is scoped per run, but the block is keyed on the alias, so a second job using the same
+    // alias in the same HOME takes this one over and its post step removes it from under this job.
+    if (replaced) {
+      core.warning(
+        `A block for "${config.hostAlias}" was already in ${config.sshConfigPath} and has been replaced. ` +
+          'If another job on this runner is using that alias right now, both jobs share one block and the ' +
+          'first post step to finish removes it. Give each concurrent job a distinct "host-alias".',
+      )
+    }
   } finally {
     core.endGroup()
   }

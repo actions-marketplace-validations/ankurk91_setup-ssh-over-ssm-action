@@ -105,6 +105,7 @@ export const upsertBlock = async ({ sshConfigPath, hostAlias, block }) => {
   const suffix = rest.trim() ? `\n${rest}\n` : ''
   await writeAtomic(sshConfigPath, `${block}\n${suffix}`)
   await chmod(sshConfigPath, 0o600)
+  return withoutOurs !== existing
 }
 
 export const removeBlock = async ({ sshConfigPath, hostAlias }) => {

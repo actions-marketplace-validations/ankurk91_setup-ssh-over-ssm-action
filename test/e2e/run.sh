@@ -237,6 +237,45 @@ check_config_precedence() {
   ok 'seeded wildcard still applies to other hosts' "$value" 'nobody'
 }
 
+# Two jobs on one self-hosted runner share $HOME. Running the main step twice stands in for that: the
+# paths once carried only the alias and the instance id, so the second run's ssh-keygen deleted the first
+# run's key. Runs last, because it leaves a block and key material behind.
+check_run_scope() {
+  local first second before after
+
+  echo '== concurrent runs =='
+
+  first="$(main_step_key_path "$RUN_DIR/state.a" "$RUN_DIR/main.a.log")"
+  # Shared paths leave a file behind either way, so compare the bytes rather than existence.
+  before="$(sha256sum < "$first" 2>/dev/null | cut -d' ' -f1)"
+
+  second="$(main_step_key_path "$RUN_DIR/state.b" "$RUN_DIR/main.b.log")"
+  after="$(sha256sum < "$first" 2>/dev/null | cut -d' ' -f1)"
+
+  ok 'each run gets its own key path' "$([[ -n "$first" && "$first" != "$second" ]] && echo differ)" 'differ'
+  ok 'the second run leaves the first run key alone' "${after:-missing}" "${before:-unset}"
+  ok 'the second run key exists' "$([[ -f "$second" ]] && echo yes)" 'yes'
+
+  sed -n 's/^::error:://p' "$RUN_DIR/main.a.log" "$RUN_DIR/main.b.log"
+}
+
+# Runs the main step against its own state file and echoes the key path it recorded.
+main_step_key_path() {
+  local state_file="$1" log_file="$2"
+  local -a env_pairs=()
+
+  mapfile -t env_pairs < <(action_env)
+
+  # The runner creates this file; @actions/core refuses to save state without it.
+  : > "$state_file"
+
+  # The trailing GITHUB_STATE wins over the one action_env sets, so each run records its own paths.
+  env -i "${env_pairs[@]}" "GITHUB_STATE=$state_file" \
+    node "$REPO_DIR/dist/main/index.js" > "$log_file" 2>&1
+
+  sed -n '/^private-key-path<</{n;p;}' "$state_file"
+}
+
 check_transport() {
   local -a ssh_opts=( -F "$RUN_DIR/home/.ssh/config" -o BatchMode=yes )
   local output exit_code local_sum remote_sum socket_count
@@ -335,6 +374,7 @@ main() {
   check_config_precedence
   check_transport
   check_post_step
+  check_run_scope
   report_stub_calls
 
   echo

@@ -3,7 +3,7 @@
 import * as core from '@actions/core'
 import * as exec from '@actions/exec'
 import * as io from '@actions/io'
-import { createHash } from 'node:crypto'
+import { randomBytes } from 'node:crypto'
 import { chmod, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
@@ -20,20 +20,25 @@ const maskPrivateKey = (contents) => {
 }
 
 // A Unix socket path cannot exceed 108 bytes including the terminator, and ssh exits 255 rather than
-// degrading when it does, so the control socket is named by a digest instead of the alias and instance
-// id. ControlMaster binds a temporary "<path>.<16 random characters>" and links that into place, so the
-// path this action writes has to stay 18 bytes clear of 108. The key and known_hosts files have no such
-// limit and stay readable.
+// degrading when it does, so the control socket is named by the run token alone instead of the alias and
+// instance id. ControlMaster binds a temporary "<path>.<16 random characters>" and links that into place,
+// so the path this action writes has to stay 18 bytes clear of 108. The key and known_hosts files have no
+// such limit and stay readable.
 export const CONTROL_PATH_MAX = 90
 
+// Jobs on one self-hosted runner share $HOME, so paths built from the alias and instance id alone collide:
+// ssh-keygen would delete a concurrent run's key before generating its own, both runs would share a control
+// socket, and the first post step to finish would remove the other's key. The run identifiers cannot tell
+// those jobs apart -- GITHUB_JOB is the same for every leg of a matrix -- so each main step draws a random
+// token and hands the paths it built to its own post step through state.
 export const keyPaths = ({ sshDir, hostAlias, instanceId }) => {
-  const privateKeyPath = path.join(sshDir, `ssm-${hostAlias}-${instanceId}`)
-  const digest = createHash('sha256').update(`${hostAlias}-${instanceId}`).digest('hex').slice(0, 8)
+  const token = randomBytes(4).toString('hex')
+  const privateKeyPath = path.join(sshDir, `ssm-${hostAlias}-${instanceId}-${token}`)
   return {
     privateKeyPath,
     publicKeyPath: `${privateKeyPath}.pub`,
-    knownHostsFile: path.join(sshDir, `ssm-${hostAlias}-${instanceId}.known_hosts`),
-    controlPath: path.join(sshDir, `ssm-${digest}.sock`),
+    knownHostsFile: `${privateKeyPath}.known_hosts`,
+    controlPath: path.join(sshDir, `ssm-${token}.sock`),
   }
 }
 

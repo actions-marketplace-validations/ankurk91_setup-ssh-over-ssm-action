@@ -193,7 +193,7 @@ Be aware of these before adopting it.
 
   ```
   ControlMaster auto
-  ControlPath ~/.ssh/ssm-<digest>.sock
+  ControlPath ~/.ssh/ssm-<run token>.sock
   ControlPersist 8h
   ```
 
@@ -208,6 +208,12 @@ Be aware of these before adopting it.
   self-hosted runner, two concurrent jobs assuming the same role with the same role session name are
   indistinguishable by owner alone, which is why the timestamp filter exists. It errs toward leaving sessions
   alone rather than killing a concurrent job's tunnel. Set `terminate-sessions: false` to skip it entirely.
+- **Concurrent jobs on a shared runner need distinct aliases.** The key, the public key, the known_hosts
+  file and the control socket are named per run, so jobs that overlap on one self-hosted runner never write
+  over each other's key material. The `~/.ssh/config` block is not: it is keyed on `host-alias` alone, so
+  two jobs using the same alias under the same `HOME` share one block, and the first post step to finish
+  removes it from under the other. Give each concurrent job its own `host-alias`. The action logs a warning
+  when it replaces a block that was already there.
 - **Linux only.** No Windows runners, no macOS runners, no Windows instances.
 
 ## Links
