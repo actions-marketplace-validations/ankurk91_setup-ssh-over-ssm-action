@@ -21,12 +21,6 @@ Replace the placeholders.
       ]
     },
     {
-      "Sid": "OpenTheDataChannel",
-      "Effect": "Allow",
-      "Action": "ssmmessages:OpenDataChannel",
-      "Resource": "*"
-    },
-    {
       "Sid": "DescribeCallsCannotBeScoped",
       "Effect": "Allow",
       "Action": [
@@ -71,7 +65,7 @@ hybrid nodes at all, so those need `private-key`.
 
 ### Gotchas
 
-Three things that are easy to get wrong and produce confusing failures.
+Things that are easy to get wrong and produce confusing failures.
 
 - **`ssm:TerminateSession` cannot be scoped by session ARN when you authenticate with OIDC.** The widely
   copied `arn:aws:ssm:*:*:session/${aws:username}-*` does not work: AWS documents that the `${aws:username}`
@@ -86,21 +80,14 @@ Three things that are easy to get wrong and produce confusing failures.
 
 ## EC2 instance role
 
-Attach the AWS managed policy **`AmazonSSMManagedInstanceCore`** to the instance profile. It grants the SSM
-Agent what it needs to register the instance and serve sessions: the `ssm:UpdateInstanceInformation`
-heartbeat, the `ssmmessages:*` channel calls that carry session traffic, the `ec2messages:*` calls used for
-Run Command, and read access to SSM documents and parameters.
+Attach the AWS managed policy **`AmazonSSMManagedInstanceCore`** to the instance profile.
 
-You need permissions beyond it in two cases.
+Few cases need more than that.
 
-**Session logging.** `AmazonSSMManagedInstanceCore` does not grant log delivery. If you turn on Session
-Manager logging you must also allow `s3:PutObject` on the log bucket, `kms:GenerateDataKey` on the key if the
-bucket or the session is encrypted, and `logs:CreateLogStream`, `logs:PutLogEvents` and
-`logs:DescribeLogStreams` on the CloudWatch log group. This logging does not capture SSH sessions — see the
-caveats in the [README](../README.md#caveats).
-
-**No internet egress.** The SSM Agent has to reach AWS endpoints. If the instance has no NAT gateway and no
-internet gateway, create VPC interface endpoints for `com.amazonaws.<region>.ssm`,
-`com.amazonaws.<region>.ssmmessages` and `com.amazonaws.<region>.ec2messages`, and allow 443 from the instance
-to the endpoint security group. Without these the instance never reaches `Online` and this action fails its
-instance check.
+- **Session logging.** Also allow `s3:PutObject` on the log bucket, `kms:GenerateDataKey` on the key if the
+  bucket or the session is encrypted, and `logs:CreateLogStream`, `logs:PutLogEvents` and
+  `logs:DescribeLogStreams` on the CloudWatch log group. It does not capture SSH sessions — see the
+  [README caveats](../README.md#caveats).
+- **No internet egress.** Create VPC interface endpoints for `com.amazonaws.<region>.ssm`,
+  `com.amazonaws.<region>.ssmmessages` and `com.amazonaws.<region>.ec2messages`, and allow 443 from the
+  instance to the endpoint security group. Without them the instance never reaches `Online`.
