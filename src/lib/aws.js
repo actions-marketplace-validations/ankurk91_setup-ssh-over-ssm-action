@@ -80,14 +80,13 @@ export const waitForInstanceOnline = async ({ ssm, instanceId, timeoutSeconds })
   )
 }
 
-export const sendPublicKey = async ({ eic, instanceId, osUser, publicKey, availabilityZone }) => {
+export const sendPublicKey = async ({ eic, instanceId, osUser, publicKey }) => {
   try {
     const response = await eic.send(
       new SendSSHPublicKeyCommand({
         InstanceId: instanceId,
         InstanceOSUser: osUser,
         SSHPublicKey: publicKey,
-        ...(availabilityZone ? { AvailabilityZone: availabilityZone } : {}),
       }),
     )
     core.debug(`SendSSHPublicKey requestId=${response.RequestId ?? 'unknown'}`)
