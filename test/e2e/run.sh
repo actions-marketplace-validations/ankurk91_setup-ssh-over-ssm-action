@@ -118,11 +118,29 @@ build_workspace() {
   # sets StrictModes no, which is what lets sshd accept a file it does not own.
   chmod 755 "$RUN_DIR/remote_ssh"
 
+  seed_ssh_config
+
   echo 'hello from the runner' > "$RUN_DIR/payload/app.txt"
   head -c 2000 /dev/urandom > "$RUN_DIR/payload/blob.bin"
 
   : > "$RUN_DIR/out"
   : > "$RUN_DIR/state"
+}
+
+# A config the action has to survive: a wildcard that would hijack the alias if the block were
+# appended rather than written first, and a directive above the first Host line that is global and
+# has to stay global. The copy in seed.config is what the post step gets diffed against.
+seed_ssh_config() {
+  cat > "$RUN_DIR/seed.config" <<'CONFIG'
+ServerAliveCountMax 7
+
+Host *
+  User nobody
+  ProxyCommand /nonexistent/corp-proxy %h %p
+CONFIG
+
+  cp "$RUN_DIR/seed.config" "$RUN_DIR/home/.ssh/config"
+  chmod 600 "$RUN_DIR/home/.ssh/config"
 }
 
 install_shims() {
@@ -198,6 +216,27 @@ check_main_step() {
   sed -n 's/^::error:://p' "$RUN_DIR/main.log"
 }
 
+check_config_precedence() {
+  local config="$RUN_DIR/home/.ssh/config"
+  local value
+
+  echo '== config precedence =='
+
+  value="$(ssh -G -F "$config" "$HOST_ALIAS" 2>/dev/null | sed -n 's/^user //p')"
+  ok 'alias resolves to the action user' "$value" 'ubuntu'
+
+  value="$(ssh -G -F "$config" "$HOST_ALIAS" 2>/dev/null | grep -c '^proxycommand .*aws ssm start-session')"
+  ok 'alias resolves to the SSM ProxyCommand' "$value" '1'
+
+  # `Match all` closes the block's Host stanza. Without it the seeded global would be read as part of
+  # that stanza and quietly stop applying to every other host.
+  value="$(ssh -G -F "$config" other.example 2>/dev/null | sed -n 's/^serveralivecountmax //p')"
+  ok 'seeded global still applies to other hosts' "$value" '7'
+
+  value="$(ssh -G -F "$config" other.example 2>/dev/null | sed -n 's/^user //p')"
+  ok 'seeded wildcard still applies to other hosts' "$value" 'nobody'
+}
+
 check_transport() {
   local -a ssh_opts=( -F "$RUN_DIR/home/.ssh/config" -o BatchMode=yes )
   local output exit_code local_sum remote_sum socket_count
@@ -266,6 +305,9 @@ check_post_step() {
 
   key_count="$(count_matching "$RUN_DIR/home/.ssh/ssm-*")"
   ok 'key material deleted' "$key_count" '0'
+
+  diff -q "$RUN_DIR/seed.config" "$RUN_DIR/home/.ssh/config" >/dev/null 2>&1
+  ok 'pre-existing config restored byte for byte' "$?" '0'
 }
 
 report_stub_calls() {
@@ -290,6 +332,7 @@ main() {
   start_stub
 
   check_main_step
+  check_config_precedence
   check_transport
   check_post_step
   report_stub_calls

@@ -68,6 +68,10 @@ export const renderBlock = ({
     // this cannot be replaced by an SDK call. --region is explicit so it does not depend on ambient env
     // at connection time.
     `  ProxyCommand sh -c "aws ssm start-session --target %h --document-name AWS-StartSSHSession --parameters 'portNumber=%p' --region ${region}"`,
+    // upsertBlock writes this block first in the file, so the Host stanza has to be closed again here.
+    // Without it, directives the user kept above their first Host line, which applied to every host,
+    // would be read as part of this stanza and silently stop applying to the rest of them.
+    'Match all',
     endMarker(hostAlias),
   ].join('\n')
 
@@ -94,8 +98,12 @@ export const upsertBlock = async ({ sshConfigPath, hostAlias, block }) => {
     )
   }
 
-  const prefix = withoutOurs.trim() ? `${withoutOurs.replace(/\n*$/, '')}\n\n` : ''
-  await writeAtomic(sshConfigPath, `${prefix}${block}\n`)
+  // ssh keeps the first value it obtains for each parameter, so the block goes at the top of the file.
+  // Appended last, any earlier stanza matching the alias -- a `Host *` on a self-hosted runner, say --
+  // would outrank User and ProxyCommand, and the connection would silently bypass Session Manager.
+  const rest = withoutOurs.replace(/^\n+/, '').replace(/\n*$/, '')
+  const suffix = rest.trim() ? `\n${rest}\n` : ''
+  await writeAtomic(sshConfigPath, `${block}\n${suffix}`)
   await chmod(sshConfigPath, 0o600)
 }
 
