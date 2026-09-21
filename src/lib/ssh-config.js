@@ -15,6 +15,12 @@ const blockPattern = (alias) =>
     'g',
   )
 
+// ssh parses the whole config before it uses any of it, so an unquoted space is not a bad directive, it
+// is a syntax error that takes every host in the file down with it. A bare % starts a token (%d, %h, %C)
+// and fails to expand on a home directory like /home/user%40corp. Quoting carries both; readInputs rejects
+// the characters it cannot carry.
+export const quoteSshPath = (value) => `"${value.replaceAll('%', '%%')}"`
+
 const readIfPresent = async (file) => {
   try {
     return await readFile(file, 'utf8')
@@ -55,13 +61,13 @@ export const renderBlock = ({
     `  HostName ${instanceId}`,
     `  User ${osUser}`,
     `  Port ${port}`,
-    `  IdentityFile ${identityFile}`,
+    `  IdentityFile ${quoteSshPath(identityFile)}`,
     '  IdentitiesOnly yes',
     '  StrictHostKeyChecking accept-new',
-    `  UserKnownHostsFile ${knownHostsFile}`,
+    `  UserKnownHostsFile ${quoteSshPath(knownHostsFile)}`,
     '  ServerAliveInterval 30',
     ...(controlPath
-      ? ['  ControlMaster auto', `  ControlPath ${controlPath}`, '  ControlPersist 8h']
+      ? ['  ControlMaster auto', `  ControlPath ${quoteSshPath(controlPath)}`, '  ControlPersist 8h']
       : []),
     // ssh runs ProxyCommand itself, once per connection, and pipes stdin/stdout through it. The AWS CLI is
     // what orchestrates session-manager-plugin to turn the StartSession WebSocket into that byte stream, so

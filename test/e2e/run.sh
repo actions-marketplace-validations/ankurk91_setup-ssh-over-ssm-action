@@ -259,6 +259,42 @@ check_run_scope() {
   sed -n 's/^::error:://p' "$RUN_DIR/main.a.log" "$RUN_DIR/main.b.log"
 }
 
+# ssh parses the whole config before it uses any of it, so an unquoted space in HOME takes every host in
+# the file down, and a % is read as a token and fails to expand. HOME is the one path in the block that no
+# input validates. Runs last, because each case writes a config into a HOME of its own.
+check_awkward_home() {
+  echo '== awkward HOME =='
+
+  awkward_home_case 'space' "$RUN_DIR/home with space" 'home-space'
+  awkward_home_case 'percent' "$RUN_DIR/home%40corp" 'home-percent'
+}
+
+awkward_home_case() {
+  local label="$1" home="$2" slug="$3"
+  local state_file="$RUN_DIR/$slug.state" log_file="$RUN_DIR/$slug.log"
+  local -a env_pairs=()
+  local key_path identity
+
+  mapfile -t env_pairs < <(action_env)
+  : > "$state_file"
+
+  env -i "${env_pairs[@]}" "HOME=$home" "GITHUB_STATE=$state_file" \
+    node "$REPO_DIR/dist/main/index.js" > "$log_file" 2>&1
+
+  key_path="$(sed -n '/^private-key-path<</{n;p;}' "$state_file")"
+
+  ssh -G -F "$home/.ssh/config" "$HOST_ALIAS" >/dev/null 2>&1
+  ok "$label: ssh parses the config" "$?" '0'
+
+  # -G prints IdentityFile before expansion, so read the expanded path off a connection attempt instead.
+  # The proxy is overridden to fail at once: the identity file is resolved before ssh connects.
+  identity="$(ssh -v -o BatchMode=yes -o ProxyCommand=/bin/false -F "$home/.ssh/config" "$HOST_ALIAS" true 2>&1 |
+    sed -n 's/^debug1: identity file \(.*\) type .*/\1/p' | head -1)"
+  ok "$label: ssh resolves the identity file" "$identity" "$key_path"
+
+  sed -n 's/^::error:://p' "$log_file"
+}
+
 # Runs the main step against its own state file and echoes the key path it recorded.
 main_step_key_path() {
   local state_file="$1" log_file="$2"
@@ -375,6 +411,7 @@ main() {
   check_transport
   check_post_step
   check_run_scope
+  check_awkward_home
   report_stub_calls
 
   echo

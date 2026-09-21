@@ -73,6 +73,22 @@ const resolvePrivateKey = () => {
   return key
 }
 
+// Every input is validated, but the home directory is not one, and it is the only part of the rendered
+// block this action does not choose. Quoting carries a space or a percent; nothing carries a quote, a
+// backslash, or ${, which ssh expands from the environment and fails on when the variable is unset.
+const resolveSshDir = () => {
+  const home = os.homedir()
+  const unrepresentable = /["\\]|\$\{/.test(home) || [...home].some((char) => char.codePointAt(0) < 0x20)
+  if (unrepresentable) {
+    throw new InputError(
+      `The home directory ${JSON.stringify(home)} cannot be written into an SSH config: ssh reads ", \\ ` +
+        'and ${ as syntax with no way to escape them, and a control character ends the line. ' +
+        'Run this job with a HOME that contains none of those.',
+    )
+  }
+  return path.join(home, '.ssh')
+}
+
 export const readInputs = () => {
   const instanceId = core.getInput('instance-id', { required: true }).trim()
   if (!INSTANCE_ID.test(instanceId)) {
@@ -99,7 +115,7 @@ export const readInputs = () => {
     fail('key-type', keyType, `one of ${[...KEY_TYPES].join(', ')}`)
   }
 
-  const sshDir = path.join(os.homedir(), '.ssh')
+  const sshDir = resolveSshDir()
 
   return Object.freeze({
     instanceId,

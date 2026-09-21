@@ -3,7 +3,7 @@ import * as exec from '@actions/exec'
 import * as io from '@actions/io'
 import { rm } from 'node:fs/promises'
 import { createClients, listActiveSessions, terminateSession } from './lib/aws.js'
-import { removeBlock } from './lib/ssh-config.js'
+import { quoteSshPath, removeBlock } from './lib/ssh-config.js'
 import { STATE } from './lib/state.js'
 
 const state = (key) => core.getState(STATE[key])
@@ -21,7 +21,9 @@ const closeControlMaster = async ({ hostAlias, controlPath }) => {
   const ssh = await io.which('ssh', false)
   if (!ssh || !controlPath) return
 
-  const exitCode = await exec.exec(ssh, ['-O', 'exit', '-o', `ControlPath=${controlPath}`, hostAlias], {
+  // -o goes through the config parser too, so the path needs the same quoting it gets in the block.
+  const args = ['-O', 'exit', '-o', `ControlPath=${quoteSshPath(controlPath)}`, hostAlias]
+  const exitCode = await exec.exec(ssh, args, {
     silent: true,
     ignoreReturnCode: true,
   })
