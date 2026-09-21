@@ -67,7 +67,7 @@ export const renderBlock = ({
     `  UserKnownHostsFile ${quoteSshPath(knownHostsFile)}`,
     '  ServerAliveInterval 30',
     ...(controlPath
-      ? ['  ControlMaster auto', `  ControlPath ${quoteSshPath(controlPath)}`, '  ControlPersist 8h']
+      ? ['  ControlMaster auto', `  ControlPath ${quoteSshPath(controlPath)}`, '  ControlPersist 1h']
       : []),
     // ssh runs ProxyCommand itself, once per connection, and pipes stdin/stdout through it. The AWS CLI is
     // what orchestrates session-manager-plugin to turn the StartSession WebSocket into that byte stream, so

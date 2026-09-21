@@ -194,14 +194,15 @@ Be aware of these before adopting it.
   ```
   ControlMaster auto
   ControlPath ~/.ssh/ssm-<run token>.sock
-  ControlPersist 8h
+  ControlPersist 1h
   ```
 
   The first `ssh` or `rsync` opens a master connection; every later invocation reuses that socket instead of
   re-authenticating, so the expired key stops mattering. This is on by default because the failure it
   prevents is common and the error message is unhelpful. It does not help if the *first* connection happens
-  more than sixty seconds after the action runs — put the action immediately before the steps that use it,
-  or use the `private-key` input with a key you manage if your pipeline has long gaps. The post step closes
+  more than sixty seconds after the action runs, or if the master sits idle past `ControlPersist` — put the
+  action immediately before the steps that use it, or use the `private-key` input with a key you manage if
+  your pipeline has long gaps. The post step closes
   the master with `ssh -O exit`.
 - **Session cleanup is a heuristic.** The post step terminates only sessions whose owner matches this job's
   caller identity *and* whose start time is at or after the moment the main step began. On a shared
