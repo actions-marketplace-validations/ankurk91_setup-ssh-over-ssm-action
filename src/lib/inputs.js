@@ -5,7 +5,7 @@ import os from 'node:os'
 import path from 'node:path'
 
 const INSTANCE_ID = /^(i|mi)-[0-9a-f]{8}([0-9a-f]{9})?$/
-const POSIX_USER = /^[a-z_][a-z0-9_-]{0,31}$/
+const POSIX_USER = /^[a-zA-Z0-9._][a-zA-Z0-9._-]{0,31}$/
 const HOST_ALIAS = /^[A-Za-z0-9._-]{1,64}$/
 const AWS_REGION = /^[a-z]{2}(?:-[a-z]+){1,2}-\d$/
 const UNSAFE = /[\s;&|`$(){}<>\\"'!*?[\]~#]/
@@ -97,7 +97,11 @@ export const readInputs = () => {
 
   const osUser = core.getInput('os-user').trim()
   if (!POSIX_USER.test(osUser)) {
-    fail('os-user', osUser, 'a POSIX user name matching ^[a-z_][a-z0-9_-]{0,31}$, such as ubuntu or ec2-user')
+    fail(
+      'os-user',
+      osUser,
+      'a user name matching ^[a-zA-Z0-9._][a-zA-Z0-9._-]{0,31}$, such as ubuntu, ec2-user or first.last',
+    )
   }
 
   const hostAlias = core.getInput('host-alias').trim()
