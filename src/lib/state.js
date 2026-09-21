@@ -1,7 +1,6 @@
 // State keys shared between the main and post steps.
 
 export const STATE = {
-  started: 'started-at',
   region: 'region',
   instanceId: 'instance-id',
   hostAlias: 'host-alias',
@@ -10,7 +9,7 @@ export const STATE = {
   publicKeyPath: 'public-key-path',
   knownHostsFile: 'known-hosts-file',
   controlPath: 'control-path',
-  callerArn: 'caller-arn',
+  sessionReason: 'session-reason',
   terminateSessions: 'terminate-sessions',
   cleanup: 'cleanup',
 }

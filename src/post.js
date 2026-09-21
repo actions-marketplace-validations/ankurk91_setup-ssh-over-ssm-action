@@ -31,31 +31,22 @@ const closeControlMaster = async ({ hostAlias, controlPath }) => {
   await rm(controlPath, { force: true })
 }
 
-// Only sessions owned by this job's caller identity and started at or after the main step are terminated.
-// A looser filter would kill a concurrent job's session when several jobs share a self-hosted runner and
-// assume the same role with the same role-session-name.
-const terminateOwnSessions = async ({ region, instanceId, callerArn, startedAt }) => {
-  if (!callerArn) {
-    core.warning('No caller identity was recorded, so active SSM sessions were left alone.')
-    return
-  }
-
-  const since = Date.parse(startedAt)
-  if (Number.isNaN(since)) {
-    core.warning('No valid start timestamp was recorded, so active SSM sessions were left alone.')
+// The main step stamped every session it opens with --reason, so ownership is an exact match rather than
+// a guess from the caller identity and a start time, which cannot separate two jobs sharing a role.
+const terminateOwnSessions = async ({ region, instanceId, sessionReason }) => {
+  if (!sessionReason) {
+    core.warning('No session marker was recorded, so active SSM sessions were left alone.')
     return
   }
 
   const { ssm } = createClients(region)
   const sessions = await listActiveSessions({ ssm, target: instanceId })
-  const own = sessions.filter(
-    (session) => session.Owner === callerArn && session.StartDate instanceof Date && session.StartDate.getTime() >= since,
-  )
+  const own = sessions.filter((session) => session.Reason === sessionReason)
 
-  if (own.length === 0) {
-    core.info('No active SSM sessions from this job were left open.')
-    return
-  }
+  // The totals are worth logging: if the marker ever stopped coming back, this is where it would show.
+  core.info(`${sessions.length} active session(s) on ${instanceId}, ${own.length} opened by this job.`)
+
+  if (own.length === 0) return
 
   for (const session of own) {
     await attempt(`Terminating session ${session.SessionId}`, async () => {
@@ -85,8 +76,7 @@ const run = async () => {
       terminateOwnSessions({
         region: state('region'),
         instanceId: state('instanceId'),
-        callerArn: state('callerArn'),
-        startedAt: state('started'),
+        sessionReason: state('sessionReason'),
       }),
     )
   }

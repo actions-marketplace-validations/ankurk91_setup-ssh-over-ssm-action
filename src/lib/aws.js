@@ -1,4 +1,4 @@
-// AWS SDK v3 control-plane calls: SSM registration and sessions, EC2 Instance Connect, STS.
+// AWS SDK v3 control-plane calls: SSM registration and sessions, EC2 Instance Connect.
 
 import * as core from '@actions/core'
 import { SendSSHPublicKeyCommand, EC2InstanceConnectClient } from '@aws-sdk/client-ec2-instance-connect'
@@ -8,13 +8,11 @@ import {
   SSMClient,
   TerminateSessionCommand,
 } from '@aws-sdk/client-ssm'
-import { GetCallerIdentityCommand, STSClient } from '@aws-sdk/client-sts'
 import { setTimeout as sleep } from 'node:timers/promises'
 
 export const createClients = (region) => ({
   ssm: new SSMClient({ region }),
   eic: new EC2InstanceConnectClient({ region }),
-  sts: new STSClient({ region }),
 })
 
 const describeInstance = async (ssm, instanceId) => {
@@ -119,12 +117,6 @@ export const sendPublicKey = async ({ eic, instanceId, osUser, publicKey }) => {
       { cause: error },
     )
   }
-}
-
-export const getCallerArn = async (sts) => {
-  const { Arn } = await sts.send(new GetCallerIdentityCommand({}))
-  core.debug(`Caller identity resolved to ${Arn ?? 'unknown'}`)
-  return Arn ?? null
 }
 
 export const listActiveSessions = async ({ ssm, target }) => {

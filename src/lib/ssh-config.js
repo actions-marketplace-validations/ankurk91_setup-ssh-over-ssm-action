@@ -54,6 +54,7 @@ export const renderBlock = ({
   identityFile,
   knownHostsFile,
   controlPath,
+  sessionReason,
 }) =>
   [
     beginMarker(hostAlias),
@@ -72,8 +73,10 @@ export const renderBlock = ({
     // ssh runs ProxyCommand itself, once per connection, and pipes stdin/stdout through it. The AWS CLI is
     // what orchestrates session-manager-plugin to turn the StartSession WebSocket into that byte stream, so
     // this cannot be replaced by an SDK call. --region is explicit so it does not depend on ambient env
-    // at connection time.
-    `  ProxyCommand sh -c "aws ssm start-session --target %h --document-name AWS-StartSSHSession --parameters 'portNumber=%p' --region ${region}"`,
+    // at connection time. --reason stamps every session this run opens, which is what lets the post step
+    // terminate its own and nothing else; the value carries no quote or % that would break either quoting
+    // layer or ssh's token expansion.
+    `  ProxyCommand sh -c "aws ssm start-session --target %h --document-name AWS-StartSSHSession --parameters 'portNumber=%p' --region ${region} --reason '${sessionReason}'"`,
     // upsertBlock writes this block first in the file, so the Host stanza has to be closed again here.
     // Without it, directives the user kept above their first Host line, which applied to every host,
     // would be read as part of this stanza and silently stop applying to the rest of them.

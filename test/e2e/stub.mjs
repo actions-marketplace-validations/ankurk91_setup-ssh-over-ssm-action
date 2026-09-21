@@ -41,7 +41,8 @@ createServer((req, res) => {
   req.on('data', (c) => (body += c))
   req.on('end', async () => {
     if (req.url === '/__calls') return json(res, calls)
-    if (req.url === '/__sessions' && req.method === 'POST') {
+    if (req.url === '/__sessions') {
+      if (req.method !== 'POST') return json(res, sessions)
       sessions = JSON.parse(body)
       return json(res, { ok: true })
     }

@@ -144,7 +144,12 @@ CONFIG
 }
 
 install_shims() {
-  printf '#!/bin/sh\nexec nc 127.0.0.1 %s\n' "$SSH_PORT" > "$RUN_DIR/bin/aws"
+  # The shim records its arguments so the rig can check what the ProxyCommand actually asked for.
+  cat > "$RUN_DIR/bin/aws" <<EOF
+#!/bin/sh
+printf '%s\n' "\$*" >> "$RUN_DIR/aws-args"
+exec nc 127.0.0.1 $SSH_PORT
+EOF
   printf '#!/bin/sh\nexit 0\n' > "$RUN_DIR/bin/session-manager-plugin"
   chmod +x "$RUN_DIR/bin/aws" "$RUN_DIR/bin/session-manager-plugin"
 
@@ -181,6 +186,8 @@ action_env() {
   echo "HOME=$RUN_DIR/home"
   echo "GITHUB_OUTPUT=$RUN_DIR/out"
   echo "GITHUB_STATE=$RUN_DIR/state"
+  echo 'GITHUB_RUN_ID=42'
+  echo 'GITHUB_RUN_ATTEMPT=1'
   echo 'AWS_EC2_METADATA_DISABLED=true'
   echo 'AWS_ACCESS_KEY_ID=AKIAE2E'
   echo 'AWS_SECRET_ACCESS_KEY=secret'
@@ -389,6 +396,33 @@ check_transport() {
   fi
 }
 
+# The post step matches its own sessions by the --reason the main step stamped on them. Check the marker
+# reached the CLI, then seed the stub with one session carrying it and one from another job: only the
+# first may be terminated.
+check_session_marker() {
+  local reason
+
+  echo '== session marker =='
+
+  reason="$(sed -n '/^session-reason<</{n;p;}' "$RUN_DIR/state")"
+  ok 'a session marker was recorded' "$([[ -n "$reason" ]] && echo yes || echo no)" 'yes'
+  # One line per aws invocation, so the count varies with multiplexing; only presence matters.
+  ok 'the ProxyCommand passed --reason' \
+    "$(grep -q -- "--reason $reason" "$RUN_DIR/aws-args" 2>/dev/null && echo yes || echo no)" 'yes'
+
+  node -e '
+    const [, url, reason] = process.argv
+    const sessions = [
+      { SessionId: "ours", Target: "i-0123456789abcdef0", Reason: reason },
+      { SessionId: "theirs", Target: "i-0123456789abcdef0", Reason: "another-job/9/99999999" },
+    ]
+    fetch(url, { method: "POST", body: JSON.stringify(sessions) }).then(
+      () => {},
+      (error) => { console.error(error.message); process.exit(1) },
+    )
+  ' "http://127.0.0.1:$STUB_PORT/__sessions" "$reason"
+}
+
 # The runner exposes saved state as STATE_* variables; replay them for the post step.
 replay_state() {
   # shellcheck disable=SC2016  # ${...} here is a JS template literal; the shell must not expand it
@@ -405,7 +439,7 @@ replay_state() {
 
 check_post_step() {
   local -a env_pairs=() state_pairs=()
-  local exit_code block_count key_count
+  local exit_code block_count key_count remaining
 
   echo '== post =='
   replay_state
@@ -422,6 +456,14 @@ check_post_step() {
 
   key_count="$(count_matching "$RUN_DIR/home/.ssh/ssm-*")"
   ok 'key material deleted' "$key_count" '0'
+
+  remaining="$(node -e '
+    fetch(process.argv[1])
+      .then((response) => response.json())
+      .then((sessions) => console.log(sessions.map((session) => session.SessionId).join(",")))
+      .catch(() => console.log("unreadable"))
+  ' "http://127.0.0.1:$STUB_PORT/__sessions")"
+  ok 'only the session from this job was terminated' "$remaining" 'theirs'
 
   diff -q "$RUN_DIR/seed.config" "$RUN_DIR/home/.ssh/config" >/dev/null 2>&1
   ok 'pre-existing config restored byte for byte' "$?" '0'
@@ -451,6 +493,7 @@ main() {
   check_main_step
   check_config_precedence
   check_transport
+  check_session_marker
   check_post_step
   check_run_scope
   check_awkward_home

@@ -26,8 +26,10 @@ removes the SSH config it wrote, deletes the key, and terminates the sessions it
 
 **On the runner**
 
-- **AWS CLI v2** and the **Session Manager plugin** on `PATH`. Both come preinstalled on GitHub-hosted Ubuntu
-  runners, at versions well past the plugin's 1.1.23.0 minimum, so there is nothing to install. On self-hosted
+- **AWS CLI v2** and the **Session Manager plugin** on `PATH`. The CLI must be recent enough to accept
+  `aws ssm start-session --reason`, which the action uses to tag its sessions. Both come preinstalled on
+  GitHub-hosted Ubuntu runners, at versions well past the plugin's 1.1.23.0 minimum, so there is nothing to
+  install. On self-hosted
   runners add them with [`ankurk91/install-aws-cli-action`](https://github.com/ankurk91/install-aws-cli-action)
   and [`ankurk91/install-session-manager-plugin-action`](https://github.com/ankurk91/install-session-manager-plugin-action).
 - A Linux runner. This action writes `~/.ssh/config` and shells out to `ssh-keygen`.
@@ -204,11 +206,11 @@ Be aware of these before adopting it.
   action immediately before the steps that use it, or use the `private-key` input with a key you manage if
   your pipeline has long gaps. The post step closes
   the master with `ssh -O exit`.
-- **Session cleanup is a heuristic.** The post step terminates only sessions whose owner matches this job's
-  caller identity *and* whose start time is at or after the moment the main step began. On a shared
-  self-hosted runner, two concurrent jobs assuming the same role with the same role session name are
-  indistinguishable by owner alone, which is why the timestamp filter exists. It errs toward leaving sessions
-  alone rather than killing a concurrent job's tunnel. Set `terminate-sessions: false` to skip it entirely.
+- **Session cleanup matches an exact marker.** The `ProxyCommand` stamps every session this run opens with
+  `--reason setup-ssh-over-ssm-action/<run id>/<attempt>/<token>`, and the post step terminates only the
+  sessions carrying that value, so concurrent jobs sharing a role, a runner and an instance never touch each
+  other's tunnels. The marker also names the originating run in the Session Manager console and in
+  CloudTrail. Set `terminate-sessions: false` to skip cleanup entirely.
 - **Concurrent jobs on a shared runner need distinct aliases.** The key, the public key, the known_hosts
   file and the control socket are named per run, so jobs that overlap on one self-hosted runner never write
   over each other's key material. The `~/.ssh/config` block is not: it is keyed on `host-alias` alone, so

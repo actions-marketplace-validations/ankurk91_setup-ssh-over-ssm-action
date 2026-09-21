@@ -1,6 +1,7 @@
 import * as core from '@actions/core'
 import * as io from '@actions/io'
-import { createClients, getCallerArn, sendPublicKey, waitForInstanceOnline } from './lib/aws.js'
+import { randomBytes } from 'node:crypto'
+import { createClients, sendPublicKey, waitForInstanceOnline } from './lib/aws.js'
 import { InputError, readInputs } from './lib/inputs.js'
 import { CONTROL_PATH_MAX, generateKeyPair, keyPaths, writeProvidedKey } from './lib/keys.js'
 import { ensureSshDir, renderBlock, upsertBlock } from './lib/ssh-config.js'
@@ -31,8 +32,19 @@ const requireTools = async () => {
   }
 }
 
+// Stamped onto every session this run opens, so the post step can match its own exactly instead of
+// guessing from the caller identity and a timestamp. The run identifiers cannot carry that on their own --
+// GITHUB_JOB is the same for every leg of a matrix -- so the random half is what makes it unique and the
+// run id is there to name the workflow run in the Session Manager console and in CloudTrail. The charset
+// stays clear of quotes and %, which the ProxyCommand and ssh's token expansion would both misread.
+const sessionReason = () => {
+  const run = [process.env.GITHUB_RUN_ID, process.env.GITHUB_RUN_ATTEMPT]
+    .map((part) => (part ?? '').replace(/[^0-9A-Za-z._-]/g, ''))
+    .filter(Boolean)
+  return ['setup-ssh-over-ssm-action', ...run, randomBytes(4).toString('hex')].join('/')
+}
+
 const run = async () => {
-  const startedAt = new Date().toISOString()
   const config = readInputs()
 
   core.debug(
@@ -47,9 +59,11 @@ const run = async () => {
   const paths = keyPaths(config)
   await ensureSshDir(config.sshDir)
 
-  const { ssm, eic, sts } = createClients(config.region)
+  const { ssm, eic } = createClients(config.region)
 
-  core.saveState(STATE.started, startedAt)
+  const reason = sessionReason()
+
+  core.saveState(STATE.sessionReason, reason)
   core.saveState(STATE.region, config.region)
   core.saveState(STATE.instanceId, config.instanceId)
   core.saveState(STATE.hostAlias, config.hostAlias)
@@ -70,19 +84,6 @@ const run = async () => {
   core.saveState(STATE.controlPath, multiplex ? paths.controlPath : '')
   core.saveState(STATE.terminateSessions, String(config.terminateSessions))
   core.saveState(STATE.cleanup, String(config.cleanup))
-
-  core.startGroup('Resolving AWS caller identity')
-  try {
-    const callerArn = await getCallerArn(sts)
-    if (callerArn) core.saveState(STATE.callerArn, callerArn)
-    core.info(`Authenticated as ${callerArn ?? 'an unknown principal'} in ${config.region}.`)
-  } catch (error) {
-    core.warning(
-      `Could not call sts:GetCallerIdentity (${error.message}). Session cleanup in the post step will be skipped ` +
-        'because the owner of this job\'s sessions cannot be determined.',
-    )
-  }
-  core.endGroup()
 
   if (config.checkInstance) {
     core.startGroup(`Checking ${config.instanceId} in SSM`)
@@ -131,6 +132,7 @@ const run = async () => {
       identityFile: paths.privateKeyPath,
       knownHostsFile: paths.knownHostsFile,
       controlPath: multiplex ? paths.controlPath : null,
+      sessionReason: reason,
     })
     core.debug(block)
     const replaced = await upsertBlock({
