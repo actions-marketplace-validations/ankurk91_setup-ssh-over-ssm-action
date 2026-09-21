@@ -24,7 +24,7 @@ set -uo pipefail
 E2E_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$E2E_DIR/../.." && pwd)"
 
-# Default under /tmp: the control socket path has a 108-byte ceiling.
+# Default under /tmp: the control socket path has a tight byte ceiling.
 RUN_DIR="${RUN_DIR:-/tmp/ssm-e2e}"
 
 SSH_PORT="${SSH_PORT:-22222}"

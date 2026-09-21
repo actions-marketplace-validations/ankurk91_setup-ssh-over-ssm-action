@@ -19,10 +19,12 @@ const maskPrivateKey = (contents) => {
   }
 }
 
-// A Unix socket path cannot exceed CONTROL_PATH_MAX bytes, and ssh fails outright rather than
-// degrading when it does, so the control socket is named by a digest instead of the alias and
-// instance id. The key and known_hosts files have no such limit and stay readable.
-export const CONTROL_PATH_MAX = 108
+// A Unix socket path cannot exceed 108 bytes including the terminator, and ssh exits 255 rather than
+// degrading when it does, so the control socket is named by a digest instead of the alias and instance
+// id. ControlMaster binds a temporary "<path>.<16 random characters>" and links that into place, so the
+// path this action writes has to stay 18 bytes clear of 108. The key and known_hosts files have no such
+// limit and stay readable.
+export const CONTROL_PATH_MAX = 90
 
 export const keyPaths = ({ sshDir, hostAlias, instanceId }) => {
   const privateKeyPath = path.join(sshDir, `ssm-${hostAlias}-${instanceId}`)

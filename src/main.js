@@ -58,13 +58,13 @@ const run = async () => {
   core.saveState(STATE.publicKeyPath, paths.publicKeyPath)
   core.saveState(STATE.knownHostsFile, paths.knownHostsFile)
   const controlPathBytes = Buffer.byteLength(paths.controlPath)
-  const multiplex = controlPathBytes < CONTROL_PATH_MAX
+  const multiplex = controlPathBytes <= CONTROL_PATH_MAX
   if (!multiplex) {
     core.warning(
-      `Connection multiplexing is off: the control socket path is ${controlPathBytes} bytes, at or over the ` +
-        `${CONTROL_PATH_MAX}-byte limit for Unix sockets, and ssh refuses such a path outright. Every connection ` +
-        'will authenticate separately, so a key pushed by EC2 Instance Connect must still be inside its ' +
-        '60 second window. A shorter HOME re-enables it.',
+      `Connection multiplexing is off: the control socket path is ${controlPathBytes} bytes, over the ` +
+        `${CONTROL_PATH_MAX}-byte ceiling this action can use, and ssh exits 255 rather than falling back. ` +
+        'Every connection will authenticate separately, so a key pushed by EC2 Instance Connect must still be ' +
+        'inside its 60 second window. A shorter HOME re-enables it.',
     )
   }
   core.saveState(STATE.controlPath, multiplex ? paths.controlPath : '')

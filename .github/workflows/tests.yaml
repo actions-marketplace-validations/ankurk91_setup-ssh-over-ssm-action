@@ -27,7 +27,7 @@ jobs:
             run-dir: /tmp/ssm-e2e
             expect-multiplex: 'yes'
 
-          # 62 characters or more used to overflow the 108-byte control socket path.
+          # 62 characters or more used to overflow the control socket path.
           - scenario: 64-character alias
             alias: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
             run-dir: /tmp/ssm-e2e-long-alias
