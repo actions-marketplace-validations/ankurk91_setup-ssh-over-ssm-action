@@ -5,11 +5,15 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
     open-pull-requests-limit: 5
     groups:
       aws-sdk:
         patterns:
           - "@aws-sdk/*"
+          - "@smithy/*"
       actions-toolkit:
         patterns:
           - "@actions/*"
@@ -18,3 +22,9 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns:
+          - "*"
