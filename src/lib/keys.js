@@ -53,10 +53,11 @@ const requireSshKeygen = async () => {
   return sshKeygen
 }
 
-// An encrypted key carries the same BEGIN line as a plain one, so nothing short of reading it tells them
-// apart. ssh runs non-interactively on the runner, with no agent and no tty, so a key that needs a
-// passphrase fails several steps later as "Permission denied (publickey)", which points at IAM or at the
-// 60-second key window instead of at the key. -P '' makes ssh-keygen fail rather than prompt.
+// An encrypted key carries the same BEGIN line as a plain one, and readInputs checks nothing past that
+// line, so only reading the key tells a usable one apart. ssh runs non-interactively on the runner, with no
+// agent and no tty, so a key that needs a passphrase fails several steps later as "Permission denied
+// (publickey)", which points at IAM or at the 60-second key window instead of at the key. -P '' makes
+// ssh-keygen fail rather than prompt.
 const assertUsableWithoutPassphrase = async (privateKeyPath) => {
   const sshKeygen = await requireSshKeygen()
   let stderr = ''
@@ -70,9 +71,10 @@ const assertUsableWithoutPassphrase = async (privateKeyPath) => {
 
   const detail = stderr.trim().split('\n').at(-1) || `ssh-keygen exited with code ${exitCode}`
   throw new Error(
-    `Input "private-key" could not be read by ssh-keygen: ${detail}. The usual cause is a passphrase, ` +
-      'which this action cannot supply. Strip it with ssh-keygen -p -P \'<old passphrase>\' -N \'\' -f <key>, ' +
-      'or copy the secret again if it was truncated.',
+    `Input "private-key" could not be read by ssh-keygen: ${detail}. The key is passphrase-protected, in a ` +
+      'format this runner\'s OpenSSH does not support, or truncated. Strip a passphrase with ' +
+      'ssh-keygen -p -P \'<old passphrase>\' -N \'\' -f <key>, convert an unsupported key with ' +
+      'ssh-keygen -p -N \'\' -f <key> on a machine that reads it, or copy the secret again.',
   )
 }
 

@@ -170,23 +170,35 @@ describe('private-key', () => {
     assert.equal(read({ 'INPUT_PRIVATE-KEY': PRIVATE_KEY }).privateKey, `${PRIVATE_KEY}\n`)
   })
 
+  test('converts CRLF line endings to LF', () => {
+    const crlf = `${PRIVATE_KEY.replaceAll('\n', '\r\n')}\r\n`
+    assert.equal(read({ 'INPUT_PRIVATE-KEY': crlf }).privateKey, `${PRIVATE_KEY}\n`)
+  })
+
   test('treats whitespace as absent', () => {
     assert.equal(read({ 'INPUT_PRIVATE-KEY': '  \n' }).privateKey, null)
   })
 
+  for (const label of ['OPENSSH', 'RSA', 'EC', 'ENCRYPTED', '']) {
+    const begin = `-----BEGIN ${label ? `${label} ` : ''}PRIVATE KEY-----`
+    test(`leaves ${begin} to ssh-keygen`, () => {
+      const key = `${begin}\n${KEY_BODY}\n-----END ${label ? `${label} ` : ''}PRIVATE KEY-----\n`
+      assert.equal(read({ 'INPUT_PRIVATE-KEY': key }).privateKey, key)
+    })
+  }
+
   test('rejects a public key', () => {
-    rejects({ 'INPUT_PRIVATE-KEY': 'ssh-ed25519 AAAAC3Nza e2e' }, /does not parse as an OpenSSH private key/)
+    rejects({ 'INPUT_PRIVATE-KEY': 'ssh-ed25519 AAAAC3Nza e2e' }, /is not a PEM or OpenSSH private key/)
   })
 
-  test('rejects mismatched BEGIN and END lines', () => {
-    const key = PRIVATE_KEY.replace('END OPENSSH', 'END RSA')
-    rejects({ 'INPUT_PRIVATE-KEY': key }, /does not parse/)
+  test('rejects a key whose BEGIN line was lost', () => {
+    rejects({ 'INPUT_PRIVATE-KEY': `${KEY_BODY}\n-----END OPENSSH PRIVATE KEY-----` }, /does not start with/)
   })
 
   test('never echoes the key in the error', () => {
     assert.throws(
-      () => read({ 'INPUT_PRIVATE-KEY': `${PRIVATE_KEY}\ntrailing junk` }),
-      (error) => !error.message.includes(KEY_BODY),
+      () => read({ 'INPUT_PRIVATE-KEY': `junk\n${KEY_BODY}` }),
+      (error) => error instanceof InputError && !error.message.includes(KEY_BODY),
     )
   })
 })

@@ -57,17 +57,18 @@ const resolveRegion = () => {
   return assertSafe('region', ambient)
 }
 
+// A key pasted from a Windows editor carries CRLF, which ssh-keygen refuses as "error in libcrypto". The
+// shape check only turns away a value that is plainly not a key; ssh-keygen decides whether it loads.
 const resolvePrivateKey = () => {
   const raw = core.getInput('private-key')
-  if (!raw.trim()) return null
+  if (!raw) return null
 
-  const key = raw.endsWith('\n') ? raw : `${raw}\n`
-  const openssh = /^-----BEGIN (OPENSSH|RSA|EC|DSA) PRIVATE KEY-----\r?\n[\s\S]+\r?\n-----END \1 PRIVATE KEY-----\r?\n$/
-  if (!openssh.test(key)) {
+  const key = `${raw.replace(/\r\n?/g, '\n').trimEnd()}\n`
+  if (!/^-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----\n/.test(key)) {
     throw new InputError(
-      'Input "private-key" does not parse as an OpenSSH private key. Expected PEM text beginning with ' +
-        '"-----BEGIN OPENSSH PRIVATE KEY-----" and ending with the matching END line. ' +
-        'Pass it through a secret and keep the literal newlines intact (use the | block scalar in YAML).',
+      'Input "private-key" is not a PEM or OpenSSH private key: it does not start with a ' +
+        '"-----BEGIN ... PRIVATE KEY-----" line. Pass it through a secret and keep the literal newlines intact ' +
+        '(use the | block scalar in YAML).',
     )
   }
   return key

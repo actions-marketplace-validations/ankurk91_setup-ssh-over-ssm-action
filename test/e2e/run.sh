@@ -374,7 +374,7 @@ awkward_home_case() {
   sed -n 's/^::error:://p' "$log_file"
 }
 
-# An encrypted key carries the same BEGIN line as a plain one, so the input regex cannot tell them apart
+# An encrypted key carries the same BEGIN line as a plain one, so the input check cannot tell them apart
 # and only ssh-keygen can. Unchecked, the action reports success and the failure lands steps later as
 # "Permission denied (publickey)". The plain key runs first so the check cannot pass by rejecting both.
 check_provided_key() {
@@ -384,12 +384,23 @@ check_provided_key() {
 
   ssh-keygen -q -t ed25519 -N '' -C e2e -f "$RUN_DIR/plain_key" </dev/null
   ssh-keygen -q -t ed25519 -N 'hunter2' -C e2e -f "$RUN_DIR/encrypted_key" </dev/null
+  ssh-keygen -q -t rsa -b 2048 -m PKCS8 -N '' -C e2e -f "$RUN_DIR/pkcs8_key" </dev/null
+  sed 's/$/\r/' "$RUN_DIR/plain_key" > "$RUN_DIR/crlf_key"
 
   run_with_provided_key "$RUN_DIR/plain_key" 'plain'
   exit_code=$?
   ok 'main accepts a key with no passphrase' "$exit_code" '0'
   ok 'the plain key gets a config block' \
     "$([[ -e "$RUN_DIR/home-plain/.ssh/config" ]] && echo present || echo absent)" 'present'
+
+  # A key pasted from a Windows editor. ssh-keygen refuses CRLF outright, so it has to be normalised first.
+  run_with_provided_key "$RUN_DIR/crlf_key" 'crlf'
+  ok 'main accepts a key with CRLF line endings' "$?" '0'
+  ok 'the key is written with LF line endings' \
+    "$(grep -c $'\r' "$(state_value "$RUN_DIR/crlf.state" private-key-path)" 2>/dev/null)" '0'
+
+  run_with_provided_key "$RUN_DIR/pkcs8_key" 'pkcs8'
+  ok 'main accepts a PKCS#8 key' "$?" '0'
 
   run_with_provided_key "$RUN_DIR/encrypted_key" 'passphrase'
   exit_code=$?
