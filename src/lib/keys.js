@@ -53,25 +53,32 @@ const requireSshKeygen = async () => {
   return sshKeygen
 }
 
+// Returns null on success, otherwise the last line of stderr, which is where ssh-keygen names the cause.
+const runSshKeygen = async (args) => {
+  const sshKeygen = await requireSshKeygen()
+  let stderr = ''
+
+  const exitCode = await exec.exec(sshKeygen, args, {
+    silent: true,
+    ignoreReturnCode: true,
+    listeners: { stderr: (chunk) => { stderr += chunk.toString() } },
+  })
+  if (exitCode === 0) return null
+
+  return stderr.trim().split('\n').at(-1) || `ssh-keygen exited with code ${exitCode}`
+}
+
 // An encrypted key carries the same BEGIN line as a plain one, and readInputs checks nothing past that
 // line, so only reading the key tells a usable one apart. ssh runs non-interactively on the runner, with no
 // agent and no tty, so a key that needs a passphrase fails several steps later as "Permission denied
 // (publickey)", which points at IAM or at the 60-second key window instead of at the key. -P '' makes
 // ssh-keygen fail rather than prompt.
 const assertUsableWithoutPassphrase = async (privateKeyPath) => {
-  const sshKeygen = await requireSshKeygen()
-  let stderr = ''
+  const failure = await runSshKeygen(['-y', '-P', '', '-f', privateKeyPath])
+  if (!failure) return
 
-  const exitCode = await exec.exec(sshKeygen, ['-y', '-P', '', '-f', privateKeyPath], {
-    silent: true,
-    ignoreReturnCode: true,
-    listeners: { stderr: (chunk) => { stderr += chunk.toString() } },
-  })
-  if (exitCode === 0) return
-
-  const detail = stderr.trim().split('\n').at(-1) || `ssh-keygen exited with code ${exitCode}`
   throw new Error(
-    `Input "private-key" could not be read by ssh-keygen: ${detail}. The key is passphrase-protected, in a ` +
+    `Input "private-key" could not be read by ssh-keygen: ${failure}. The key is passphrase-protected, in a ` +
       'format this runner\'s OpenSSH does not support, or truncated. Strip a passphrase with ' +
       'ssh-keygen -p -P \'<old passphrase>\' -N \'\' -f <key>, convert an unsupported key with ' +
       'ssh-keygen -p -N \'\' -f <key> on a machine that reads it, or copy the secret again.',
@@ -79,8 +86,6 @@ const assertUsableWithoutPassphrase = async (privateKeyPath) => {
 }
 
 export const generateKeyPair = async ({ privateKeyPath, publicKeyPath, keyType, comment }) => {
-  const sshKeygen = await requireSshKeygen()
-
   await rm(privateKeyPath, { force: true })
   await rm(publicKeyPath, { force: true })
 
@@ -93,9 +98,12 @@ export const generateKeyPair = async ({ privateKeyPath, publicKeyPath, keyType, 
     '-f', privateKeyPath,
   ]
 
-  const exitCode = await exec.exec(sshKeygen, args, { silent: true, ignoreReturnCode: true })
-  if (exitCode !== 0) {
-    throw new Error(`ssh-keygen exited with code ${exitCode} while generating a ${keyType} key at ${privateKeyPath}.`)
+  const failure = await runSshKeygen(args)
+  if (failure) {
+    throw new Error(
+      `ssh-keygen could not generate the ${keyType} key pair at ${privateKeyPath}: ${failure}. ` +
+        `Check that ${path.dirname(privateKeyPath)} is writable and the disk is not full.`,
+    )
   }
 
   await chmod(privateKeyPath, 0o600)

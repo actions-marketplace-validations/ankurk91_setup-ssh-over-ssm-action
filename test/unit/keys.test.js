@@ -1,7 +1,7 @@
 import { describe, test } from 'node:test'
 import assert from 'node:assert/strict'
 import path from 'node:path'
-import { CONTROL_PATH_MAX, keyPaths } from '../../src/lib/keys.js'
+import { CONTROL_PATH_MAX, generateKeyPair, keyPaths } from '../../src/lib/keys.js'
 
 const INSTANCE_ID = 'i-0123456789abcdef0'
 
@@ -29,5 +29,15 @@ describe('keyPaths', () => {
 
   test('leaves room for the temporary suffix ControlMaster appends', () => {
     assert.ok(CONTROL_PATH_MAX + '.'.length + 16 + 1 <= 108)
+  })
+})
+
+describe('generateKeyPair', () => {
+  test('reports what ssh-keygen said when it fails', async () => {
+    const privateKeyPath = '/nonexistent-ssh-dir/ssm-key'
+    await assert.rejects(
+      generateKeyPair({ privateKeyPath, publicKeyPath: `${privateKeyPath}.pub`, keyType: 'ed25519', comment: 't' }),
+      /could not generate the ed25519 key pair at \/nonexistent-ssh-dir\/ssm-key: .*No such file or directory.*Check that \/nonexistent-ssh-dir is writable/,
+    )
   })
 })
