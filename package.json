@@ -12,6 +12,8 @@
   },
   "scripts": {
     "lint": "oxlint --max-warnings=0",
+    "test": "node --test 'test/unit/**/*.test.js'",
+    "test:e2e": "test/e2e/run.sh",
     "build:main": "ncc build src/main.js -o dist/main",
     "build:post": "ncc build src/post.js -o dist/post",
     "build": "pnpm run build:main && pnpm run build:post",

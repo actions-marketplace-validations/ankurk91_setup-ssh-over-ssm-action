@@ -1,16 +1,18 @@
 // Minimal stand-in for the three AWS services the action calls.
 // SendSSHPublicKey actually installs the key into the sshd container's authorized_keys
 // and removes it after KEY_TTL_MS, which is the only way to exercise the real 60s window.
+// POST /__ping and /__key-ttl change PING_STATUS and KEY_TTL_MS without a restart.
 import { createServer } from 'node:http'
 import { writeFile, rm } from 'node:fs/promises'
 
 const AUTHORIZED_KEYS = process.env.AUTHORIZED_KEYS
-const KEY_TTL_MS = Number(process.env.KEY_TTL_MS ?? 60000)
 const CALLER_ARN = 'arn:aws:sts::123456789012:assumed-role/e2e/GitHubActions'
-const PING = process.env.PING_STATUS ?? 'Online'
 
 const calls = []
 let sessions = []
+let ping = process.env.PING_STATUS ?? 'Online'
+let keyTtlMs = Number(process.env.KEY_TTL_MS ?? 60000)
+let keyGeneration = 0
 
 const json = (res, body) => {
   res.writeHead(200, { 'content-type': 'application/x-amz-json-1.1' })
@@ -20,14 +22,18 @@ const json = (res, body) => {
 const handlers = {
   async SendSSHPublicKey(req) {
     await writeFile(AUTHORIZED_KEYS, `${req.SSHPublicKey}\n`, { mode: 0o644 })
-    setTimeout(() => rm(AUTHORIZED_KEYS, { force: true }), KEY_TTL_MS).unref()
+    // One file holds one key, so an expiring push must not delete the key a later push wrote.
+    const generation = ++keyGeneration
+    setTimeout(() => {
+      if (generation === keyGeneration) rm(AUTHORIZED_KEYS, { force: true })
+    }, keyTtlMs).unref()
     return { RequestId: 'stub-eic', Success: true }
   },
   DescribeInstanceInformation: (req) => ({
     InstanceInformationList:
-      PING === 'missing'
+      ping === 'missing'
         ? []
-        : [{ InstanceId: req.Filters?.[0]?.Values?.[0], PingStatus: PING, AgentVersion: '3.3.1611.0' }],
+        : [{ InstanceId: req.Filters?.[0]?.Values?.[0], PingStatus: ping, AgentVersion: '3.3.1611.0' }],
   }),
   DescribeSessions: () => ({ Sessions: sessions }),
   TerminateSession: (req) => {
@@ -44,6 +50,14 @@ createServer((req, res) => {
     if (req.url === '/__sessions') {
       if (req.method !== 'POST') return json(res, sessions)
       sessions = JSON.parse(body)
+      return json(res, { ok: true })
+    }
+    if (req.url === '/__ping' && req.method === 'POST') {
+      ping = body.trim()
+      return json(res, { ok: true })
+    }
+    if (req.url === '/__key-ttl' && req.method === 'POST') {
+      keyTtlMs = Number(body)
       return json(res, { ok: true })
     }
 
