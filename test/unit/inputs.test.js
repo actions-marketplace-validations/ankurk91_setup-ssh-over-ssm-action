@@ -106,7 +106,11 @@ describe('host-alias', () => {
     assert.equal(read({ 'INPUT_HOST-ALIAS': 'a'.repeat(64) }).hostAlias, 'a'.repeat(64))
   })
 
-  for (const alias of ['a'.repeat(65), 'web*', 'two words', '']) {
+  for (const alias of ['.staging', '_web', 'web-1']) {
+    test(`accepts ${alias}`, () => assert.equal(read({ 'INPUT_HOST-ALIAS': alias }).hostAlias, alias))
+  }
+
+  for (const alias of ['a'.repeat(65), 'web*', 'two words', '', '-v', '-oProxyCommand=id']) {
     test(`rejects ${JSON.stringify(alias)}`, () => rejects({ 'INPUT_HOST-ALIAS': alias }, /"host-alias"/))
   }
 })

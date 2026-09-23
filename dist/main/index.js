@@ -65890,7 +65890,7 @@ const terminateSession = async ({ ssm, sessionId }) => {
 
 const INSTANCE_ID = /^(i|mi)-[0-9a-f]{8}([0-9a-f]{9})?$/
 const POSIX_USER = /^[a-zA-Z0-9._][a-zA-Z0-9._-]{0,31}$/
-const HOST_ALIAS = /^[A-Za-z0-9._-]{1,64}$/
+const HOST_ALIAS = /^[A-Za-z0-9._][A-Za-z0-9._-]{0,63}$/
 const AWS_REGION = /^[a-z]{2}(?:-[a-z]+){1,2}-\d$/
 const UNSAFE = /[\s;&|`$(){}<>\\"'!*?[\]~#]/
 const KEY_TYPES = new Set(['ed25519', 'rsa'])
@@ -65991,7 +65991,12 @@ const readInputs = () => {
 
   const hostAlias = _actions_core__WEBPACK_IMPORTED_MODULE_0__/* .getInput */ .V4('host-alias').trim()
   if (!HOST_ALIAS.test(hostAlias)) {
-    fail('host-alias', hostAlias, 'an SSH host alias matching ^[A-Za-z0-9._-]{1,64}$, such as ssm-target')
+    fail(
+      'host-alias',
+      hostAlias,
+      'an SSH host alias matching ^[A-Za-z0-9._][A-Za-z0-9._-]{0,63}$, such as ssm-target. It cannot start with ' +
+        '"-", which ssh would read as an option',
+    )
   }
 
   const region = resolveRegion()
