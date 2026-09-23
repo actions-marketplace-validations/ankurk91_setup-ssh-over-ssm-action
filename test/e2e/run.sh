@@ -481,16 +481,18 @@ check_post_without_state() {
 }
 
 # cleanup and terminate-sessions are independent. Each case seeds one session carrying its own run's
-# marker, so what the stub still holds afterwards shows whether the post step went after it.
+# marker, so what the stub still holds afterwards shows whether the post step went after it. Terminating
+# the session kills the tunnel under the control master, so the master has to go even when files stay.
 check_opt_outs() {
   echo '== opt-outs =='
 
-  opt_out_case 'keep-all' 'false' 'ours'
-  opt_out_case 'keep-files' 'true' ''
+  opt_out_case 'keep-all' 'false' 'ours' '1'
+  opt_out_case 'keep-files' 'true' '' '0'
 }
 
 opt_out_case() {
-  local slug="$1" terminate="$2" expected_sessions="$3"
+  local slug="$1" terminate="$2" expected_sessions="$3" expected_masters="$4"
+  local config="$RUN_DIR/home-$slug/.ssh/config"
   local key_path
 
   run_main "$slug" 'INPUT_CLEANUP=false' "INPUT_TERMINATE-SESSIONS=$terminate"
@@ -499,10 +501,17 @@ opt_out_case() {
   key_path="$(state_value "$RUN_DIR/$slug.state" private-key-path)"
   seed_session 'ours' "$(state_value "$RUN_DIR/$slug.state" session-reason)"
 
+  if [[ "$EXPECT_MULTIPLEX" == 'yes' ]]; then
+    ok "$slug: a connection opens a control master" \
+      "$(ssh -F "$config" -o BatchMode=yes "$HOST_ALIAS" whoami 2>/dev/null)" 'ubuntu'
+  fi
+
   run_post "$slug"
   ok "$slug: post exits 0" "$?" '0'
-  ok "$slug: the config block stays" \
-    "$(grep -cxF "Host $HOST_ALIAS" "$RUN_DIR/home-$slug/.ssh/config" 2>/dev/null)" '1'
+  ok "$slug: the config block stays" "$(grep -cxF "Host $HOST_ALIAS" "$config" 2>/dev/null)" '1'
+  if [[ "$EXPECT_MULTIPLEX" == 'yes' ]]; then
+    ok "$slug: control masters left running" "$(count_matching "$RUN_DIR/home-$slug/.ssh/*.sock")" "$expected_masters"
+  fi
   ok "$slug: the key stays" "$([[ -n "$key_path" && -f "$key_path" ]] && echo yes || echo no)" 'yes'
   ok "$slug: active sessions afterwards" "$(session_ids)" "$expected_sessions"
 

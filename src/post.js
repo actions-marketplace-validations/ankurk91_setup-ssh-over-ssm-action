@@ -64,14 +64,17 @@ const run = async () => {
   }
 
   const cleanup = isTrue('cleanup')
+  const terminateSessions = isTrue('terminateSessions')
 
-  if (cleanup) {
+  // Terminating the SSM session kills the tunnel under the master, which would otherwise sit on a dead
+  // connection until ControlPersist expires, so it is closed even when the files are kept.
+  if (cleanup || terminateSessions) {
     await attempt('Closing the SSH control master', () =>
       closeControlMaster({ hostAlias, controlPath: state('controlPath') }),
     )
   }
 
-  if (isTrue('terminateSessions')) {
+  if (terminateSessions) {
     await attempt('Terminating SSM sessions', () =>
       terminateOwnSessions({
         region: state('region'),
