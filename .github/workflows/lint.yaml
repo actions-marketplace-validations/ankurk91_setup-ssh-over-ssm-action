@@ -30,3 +30,9 @@ jobs:
 
       - name: Run oxlint
         run: pnpm run lint
+
+      # The image bundles shellcheck; `-pyflakes=` turns off the Python check.
+      - name: Lint GitHub Actions workflows
+        uses: docker://rhysd/actionlint:1.7.12
+        with:
+          args: -color -pyflakes=
