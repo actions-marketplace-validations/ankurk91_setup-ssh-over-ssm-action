@@ -90,6 +90,5 @@ Few cases need more than that.
   bucket or the session is encrypted, and `logs:CreateLogStream`, `logs:PutLogEvents` and
   `logs:DescribeLogStreams` on the CloudWatch log group. It does not capture SSH sessions — see the
   [caveats](Caveats.md).
-- **No internet egress.** Create VPC interface endpoints for `com.amazonaws.<region>.ssm`,
-  `com.amazonaws.<region>.ssmmessages` and `com.amazonaws.<region>.ec2messages`, and allow 443 from the
-  instance to the endpoint security group. Without them the instance never reaches `Online`.
+- **No internet egress.** The instance needs a NAT gateway or VPC endpoints to reach Systems Manager. See
+  [Networking](Networking.md).
