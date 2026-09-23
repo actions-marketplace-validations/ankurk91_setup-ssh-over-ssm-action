@@ -65728,10 +65728,25 @@ const promises_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.ur
 
 
 
-const createClients = (region) => ({
-  ssm: new client_ssm_dist_cjs/* SSMClient */.jBj({ region }),
-  eic: new dist_cjs/* EC2InstanceConnectClient */.VJ({ region }),
+// The default Node handler never times out, so an endpoint that accepts a connection and never answers -- a
+// broken proxy, or a VPC interface endpoint whose DNS resolves -- would hang the step until the job's
+// timeout-minutes. requestTimeout on its own only logs a warning; throwOnRequestTimeout makes it an error.
+const clientConfig = (region) => ({
+  region,
+  requestHandler: { connectionTimeout: 5000, requestTimeout: 15000, throwOnRequestTimeout: true },
 })
+
+const createClients = (region) => ({
+  ssm: new client_ssm_dist_cjs/* SSMClient */.jBj(clientConfig(region)),
+  eic: new dist_cjs/* EC2InstanceConnectClient */.VJ(clientConfig(region)),
+})
+
+const timedOut = (service, error) =>
+  new Error(
+    `${service} did not answer in time: ${error.message} Check that the runner can reach the ${service} ` +
+      'endpoint for this region, through any proxy or VPC interface endpoint it uses.',
+    { cause: error },
+  )
 
 const describeInstance = async (ssm, instanceId) => {
   const response = await ssm.send(
@@ -65745,6 +65760,7 @@ const describeInstance = async (ssm, instanceId) => {
 }
 
 const describeFailure = (instanceId, error) => {
+  if (error.name === 'TimeoutError') return timedOut('SSM', error)
   if (error.name === 'AccessDeniedException') {
     return new Error(
       `Not authorised to call ssm:DescribeInstanceInformation. Grant it on Resource "*" — this API does not ` +
@@ -65808,6 +65824,7 @@ const sendPublicKey = async ({ eic, instanceId, osUser, publicKey }) => {
     core.debug(`SendSSHPublicKey requestId=${response.RequestId ?? 'unknown'}`)
     return response
   } catch (error) {
+    if (error.name === 'TimeoutError') throw timedOut('EC2 Instance Connect', error)
     if (error.name === 'AccessDeniedException') {
       throw new Error(
         `Not authorised to call ec2-instance-connect:SendSSHPublicKey for ${instanceId} as "${osUser}". Grant it on ` +
@@ -66112,14 +66129,17 @@ const run = async () => {
   }
 
   const cleanup = isTrue('cleanup')
+  const terminateSessions = isTrue('terminateSessions')
 
-  if (cleanup) {
+  // Terminating the SSM session kills the tunnel under the master, which would otherwise sit on a dead
+  // connection until ControlPersist expires, so it is closed even when the files are kept.
+  if (cleanup || terminateSessions) {
     await attempt('Closing the SSH control master', () =>
       closeControlMaster({ hostAlias, controlPath: state('controlPath') }),
     )
   }
 
-  if (isTrue('terminateSessions')) {
+  if (terminateSessions) {
     await attempt('Terminating SSM sessions', () =>
       terminateOwnSessions({
         region: state('region'),
