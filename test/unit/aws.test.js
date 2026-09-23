@@ -71,6 +71,14 @@ describe('waitForInstanceOnline', () => {
     })
   })
 
+  test('points at reachability when the endpoint does not answer', async () => {
+    const ssm = fakeClient(awsError('TimeoutError', 'a request has exceeded the configured 15000 ms requestTimeout.'))
+    await assert.rejects(
+      waitForInstanceOnline({ ssm, instanceId: INSTANCE_ID, timeoutSeconds: 0 }),
+      /SSM did not answer in time: .*15000 ms.* Check that the runner can reach the SSM endpoint/,
+    )
+  })
+
   test('wraps any other SDK error with the instance id', async () => {
     const ssm = fakeClient(awsError('ThrottlingException', 'Rate exceeded'))
     await assert.rejects(
@@ -98,6 +106,7 @@ describe('sendPublicKey', () => {
     ['AccessDeniedException', /make sure any ec2:osuser condition on the policy lists "ubuntu"/],
     ['EC2InstanceNotFoundException', /hybrid "mi-" managed nodes are not supported/],
     ['InvalidArgsException', /Check that the OS user exists on the instance/],
+    ['TimeoutError', /EC2 Instance Connect did not answer in time/],
     ['ServiceException', new RegExp(`SendSSHPublicKey failed for ${INSTANCE_ID}: ServiceException`)],
   ]
 
