@@ -1,4 +1,4 @@
-// Minimal stand-in for the three AWS services the action calls.
+// Minimal stand-in for the two AWS services the action calls.
 // SendSSHPublicKey actually installs the key into the sshd container's authorized_keys
 // and removes it after KEY_TTL_MS, which is the only way to exercise the real 60s window.
 // POST /__ping and /__key-ttl change PING_STATUS and KEY_TTL_MS without a restart.
@@ -6,7 +6,6 @@ import { createServer } from 'node:http'
 import { writeFile, rm } from 'node:fs/promises'
 
 const AUTHORIZED_KEYS = process.env.AUTHORIZED_KEYS
-const CALLER_ARN = 'arn:aws:sts::123456789012:assumed-role/e2e/GitHubActions'
 
 const calls = []
 let sessions = []
@@ -73,17 +72,6 @@ createServer((req, res) => {
       return json(res, await handler(JSON.parse(body || '{}')))
     }
 
-    if (body.includes('Action=GetCallerIdentity')) {
-      calls.push('GetCallerIdentity')
-      res.writeHead(200, { 'content-type': 'text/xml' })
-      return res.end(
-        `<GetCallerIdentityResponse xmlns="https://sts.amazonaws.com/doc/2011-06-15/">` +
-          `<GetCallerIdentityResult><Arn>${CALLER_ARN}</Arn>` +
-          `<UserId>AROAE2E:GitHubActions</UserId><Account>123456789012</Account>` +
-          `</GetCallerIdentityResult><ResponseMetadata><RequestId>stub</RequestId></ResponseMetadata>` +
-          `</GetCallerIdentityResponse>`,
-      )
-    }
     res.writeHead(400).end('unhandled')
   })
 }).listen(Number(process.env.STUB_PORT ?? 5599), '127.0.0.1', () =>
