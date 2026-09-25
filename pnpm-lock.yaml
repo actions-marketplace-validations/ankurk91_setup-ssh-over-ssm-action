@@ -181,9 +181,6 @@ importers:
       '@aws-sdk/client-ssm':
         specifier: ^3.1135.0
         version: 3.1135.0
-      '@aws-sdk/client-sts':
-        specifier: ^3.1135.0
-        version: 3.1135.0
     devDependencies:
       '@vercel/ncc':
         specifier: ^0.45.0
@@ -212,10 +209,6 @@ packages:
 
   '@aws-sdk/client-ssm@3.1135.0':
     resolution: {integrity: sha512-QkXpGAFKnVJkJH8xWYqNqK78K6YGG4LDkZig51K6zfNQfF+W7kC2PDdoNN5GnSt0RtIjvEylxs+66PLPFJkuCA==}
-    engines: {node: '>=20.0.0'}
-
-  '@aws-sdk/client-sts@3.1135.0':
-    resolution: {integrity: sha512-AzpoM9Pm2A+VaQg2FLHg0WAPiyoqU9B/0ldkal2XPinBi4rSNvuv/mHyLWlvEHhrI/Bx9EcCSzrKDg9IGCpRoA==}
     engines: {node: '>=20.0.0'}
 
   '@aws-sdk/core@3.978.0':
@@ -488,18 +481,6 @@ snapshots:
     dependencies:
       '@aws-sdk/core': 3.978.0
       '@aws-sdk/credential-provider-node': 3.972.83
-      '@aws-sdk/types': 3.974.5
-      '@smithy/core': 3.34.1
-      '@smithy/fetch-http-handler': 5.8.0
-      '@smithy/node-http-handler': 4.12.1
-      '@smithy/types': 4.18.0
-      tslib: 2.8.1
-
-  '@aws-sdk/client-sts@3.1135.0':
-    dependencies:
-      '@aws-sdk/core': 3.978.0
-      '@aws-sdk/credential-provider-node': 3.972.83
-      '@aws-sdk/signature-v4-multi-region': 3.996.46
       '@aws-sdk/types': 3.974.5
       '@smithy/core': 3.34.1
       '@smithy/fetch-http-handler': 5.8.0

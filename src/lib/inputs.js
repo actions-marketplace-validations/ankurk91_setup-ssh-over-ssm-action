@@ -6,7 +6,7 @@ import path from 'node:path'
 
 const INSTANCE_ID = /^(i|mi)-[0-9a-f]{8}([0-9a-f]{9})?$/
 const POSIX_USER = /^[a-zA-Z0-9._][a-zA-Z0-9._-]{0,31}$/
-const HOST_ALIAS = /^[A-Za-z0-9._-]{1,64}$/
+const HOST_ALIAS = /^[A-Za-z0-9._][A-Za-z0-9._-]{0,63}$/
 const AWS_REGION = /^[a-z]{2}(?:-[a-z]+){1,2}-\d$/
 const UNSAFE = /[\s;&|`$(){}<>\\"'!*?[\]~#]/
 const KEY_TYPES = new Set(['ed25519', 'rsa'])
@@ -57,17 +57,18 @@ const resolveRegion = () => {
   return assertSafe('region', ambient)
 }
 
+// A key pasted from a Windows editor carries CRLF, which ssh-keygen refuses as "error in libcrypto". The
+// shape check only turns away a value that is plainly not a key; ssh-keygen decides whether it loads.
 const resolvePrivateKey = () => {
   const raw = core.getInput('private-key')
-  if (!raw.trim()) return null
+  if (!raw) return null
 
-  const key = raw.endsWith('\n') ? raw : `${raw}\n`
-  const openssh = /^-----BEGIN (OPENSSH|RSA|EC|DSA) PRIVATE KEY-----\r?\n[\s\S]+\r?\n-----END \1 PRIVATE KEY-----\r?\n$/
-  if (!openssh.test(key)) {
+  const key = `${raw.replace(/\r\n?/g, '\n').trimEnd()}\n`
+  if (!/^-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----\n/.test(key)) {
     throw new InputError(
-      'Input "private-key" does not parse as an OpenSSH private key. Expected PEM text beginning with ' +
-        '"-----BEGIN OPENSSH PRIVATE KEY-----" and ending with the matching END line. ' +
-        'Pass it through a secret and keep the literal newlines intact (use the | block scalar in YAML).',
+      'Input "private-key" is not a PEM or OpenSSH private key: it does not start with a ' +
+        '"-----BEGIN ... PRIVATE KEY-----" line. Pass it through a secret and keep the literal newlines intact ' +
+        '(use the | block scalar in YAML).',
     )
   }
   return key
@@ -106,7 +107,12 @@ export const readInputs = () => {
 
   const hostAlias = core.getInput('host-alias').trim()
   if (!HOST_ALIAS.test(hostAlias)) {
-    fail('host-alias', hostAlias, 'an SSH host alias matching ^[A-Za-z0-9._-]{1,64}$, such as ssm-target')
+    fail(
+      'host-alias',
+      hostAlias,
+      'an SSH host alias matching ^[A-Za-z0-9._][A-Za-z0-9._-]{0,63}$, such as ssm-target. It cannot start with ' +
+        '"-", which ssh would read as an option',
+    )
   }
 
   const region = resolveRegion()

@@ -65735,10 +65735,25 @@ const promises_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.ur
 
 
 
-const createClients = (region) => ({
-  ssm: new client_ssm_dist_cjs/* SSMClient */.jBj({ region }),
-  eic: new dist_cjs/* EC2InstanceConnectClient */.VJ({ region }),
+// The default Node handler never times out, so an endpoint that accepts a connection and never answers -- a
+// broken proxy, or a VPC interface endpoint whose DNS resolves -- would hang the step until the job's
+// timeout-minutes. requestTimeout on its own only logs a warning; throwOnRequestTimeout makes it an error.
+const clientConfig = (region) => ({
+  region,
+  requestHandler: { connectionTimeout: 5000, requestTimeout: 15000, throwOnRequestTimeout: true },
 })
+
+const createClients = (region) => ({
+  ssm: new client_ssm_dist_cjs/* SSMClient */.jBj(clientConfig(region)),
+  eic: new dist_cjs/* EC2InstanceConnectClient */.VJ(clientConfig(region)),
+})
+
+const timedOut = (service, error) =>
+  new Error(
+    `${service} did not answer in time: ${error.message} Check that the runner can reach the ${service} ` +
+      'endpoint for this region, through any proxy or VPC interface endpoint it uses.',
+    { cause: error },
+  )
 
 const describeInstance = async (ssm, instanceId) => {
   const response = await ssm.send(
@@ -65752,6 +65767,7 @@ const describeInstance = async (ssm, instanceId) => {
 }
 
 const describeFailure = (instanceId, error) => {
+  if (error.name === 'TimeoutError') return timedOut('SSM', error)
   if (error.name === 'AccessDeniedException') {
     return new Error(
       `Not authorised to call ssm:DescribeInstanceInformation. Grant it on Resource "*" — this API does not ` +
@@ -65815,6 +65831,7 @@ const sendPublicKey = async ({ eic, instanceId, osUser, publicKey }) => {
     lib_core/* debug */.Yz(`SendSSHPublicKey requestId=${response.RequestId ?? 'unknown'}`)
     return response
   } catch (error) {
+    if (error.name === 'TimeoutError') throw timedOut('EC2 Instance Connect', error)
     if (error.name === 'AccessDeniedException') {
       throw new Error(
         `Not authorised to call ec2-instance-connect:SendSSHPublicKey for ${instanceId} as "${osUser}". Grant it on ` +
@@ -65890,7 +65907,7 @@ const terminateSession = async ({ ssm, sessionId }) => {
 
 const INSTANCE_ID = /^(i|mi)-[0-9a-f]{8}([0-9a-f]{9})?$/
 const POSIX_USER = /^[a-zA-Z0-9._][a-zA-Z0-9._-]{0,31}$/
-const HOST_ALIAS = /^[A-Za-z0-9._-]{1,64}$/
+const HOST_ALIAS = /^[A-Za-z0-9._][A-Za-z0-9._-]{0,63}$/
 const AWS_REGION = /^[a-z]{2}(?:-[a-z]+){1,2}-\d$/
 const UNSAFE = /[\s;&|`$(){}<>\\"'!*?[\]~#]/
 const KEY_TYPES = new Set(['ed25519', 'rsa'])
@@ -65941,17 +65958,18 @@ const resolveRegion = () => {
   return assertSafe('region', ambient)
 }
 
+// A key pasted from a Windows editor carries CRLF, which ssh-keygen refuses as "error in libcrypto". The
+// shape check only turns away a value that is plainly not a key; ssh-keygen decides whether it loads.
 const resolvePrivateKey = () => {
   const raw = _actions_core__WEBPACK_IMPORTED_MODULE_0__/* .getInput */ .V4('private-key')
-  if (!raw.trim()) return null
+  if (!raw) return null
 
-  const key = raw.endsWith('\n') ? raw : `${raw}\n`
-  const openssh = /^-----BEGIN (OPENSSH|RSA|EC|DSA) PRIVATE KEY-----\r?\n[\s\S]+\r?\n-----END \1 PRIVATE KEY-----\r?\n$/
-  if (!openssh.test(key)) {
+  const key = `${raw.replace(/\r\n?/g, '\n').trimEnd()}\n`
+  if (!/^-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----\n/.test(key)) {
     throw new InputError(
-      'Input "private-key" does not parse as an OpenSSH private key. Expected PEM text beginning with ' +
-        '"-----BEGIN OPENSSH PRIVATE KEY-----" and ending with the matching END line. ' +
-        'Pass it through a secret and keep the literal newlines intact (use the | block scalar in YAML).',
+      'Input "private-key" is not a PEM or OpenSSH private key: it does not start with a ' +
+        '"-----BEGIN ... PRIVATE KEY-----" line. Pass it through a secret and keep the literal newlines intact ' +
+        '(use the | block scalar in YAML).',
     )
   }
   return key
@@ -65990,7 +66008,12 @@ const readInputs = () => {
 
   const hostAlias = _actions_core__WEBPACK_IMPORTED_MODULE_0__/* .getInput */ .V4('host-alias').trim()
   if (!HOST_ALIAS.test(hostAlias)) {
-    fail('host-alias', hostAlias, 'an SSH host alias matching ^[A-Za-z0-9._-]{1,64}$, such as ssm-target')
+    fail(
+      'host-alias',
+      hostAlias,
+      'an SSH host alias matching ^[A-Za-z0-9._][A-Za-z0-9._-]{0,63}$, such as ssm-target. It cannot start with ' +
+        '"-", which ssh would read as an option',
+    )
   }
 
   const region = resolveRegion()
@@ -66095,32 +66118,39 @@ const requireSshKeygen = async () => {
   return sshKeygen
 }
 
-// An encrypted key carries the same BEGIN line as a plain one, so nothing short of reading it tells them
-// apart. ssh runs non-interactively on the runner, with no agent and no tty, so a key that needs a
-// passphrase fails several steps later as "Permission denied (publickey)", which points at IAM or at the
-// 60-second key window instead of at the key. -P '' makes ssh-keygen fail rather than prompt.
-const assertUsableWithoutPassphrase = async (privateKeyPath) => {
+// Returns null on success, otherwise the last line of stderr, which is where ssh-keygen names the cause.
+const runSshKeygen = async (args) => {
   const sshKeygen = await requireSshKeygen()
   let stderr = ''
 
-  const exitCode = await _actions_exec__WEBPACK_IMPORTED_MODULE_1__/* .exec */ .m(sshKeygen, ['-y', '-P', '', '-f', privateKeyPath], {
+  const exitCode = await _actions_exec__WEBPACK_IMPORTED_MODULE_1__/* .exec */ .m(sshKeygen, args, {
     silent: true,
     ignoreReturnCode: true,
     listeners: { stderr: (chunk) => { stderr += chunk.toString() } },
   })
-  if (exitCode === 0) return
+  if (exitCode === 0) return null
 
-  const detail = stderr.trim().split('\n').at(-1) || `ssh-keygen exited with code ${exitCode}`
+  return stderr.trim().split('\n').at(-1) || `ssh-keygen exited with code ${exitCode}`
+}
+
+// An encrypted key carries the same BEGIN line as a plain one, and readInputs checks nothing past that
+// line, so only reading the key tells a usable one apart. ssh runs non-interactively on the runner, with no
+// agent and no tty, so a key that needs a passphrase fails several steps later as "Permission denied
+// (publickey)", which points at IAM or at the 60-second key window instead of at the key. -P '' makes
+// ssh-keygen fail rather than prompt.
+const assertUsableWithoutPassphrase = async (privateKeyPath) => {
+  const failure = await runSshKeygen(['-y', '-P', '', '-f', privateKeyPath])
+  if (!failure) return
+
   throw new Error(
-    `Input "private-key" could not be read by ssh-keygen: ${detail}. The usual cause is a passphrase, ` +
-      'which this action cannot supply. Strip it with ssh-keygen -p -P \'<old passphrase>\' -N \'\' -f <key>, ' +
-      'or copy the secret again if it was truncated.',
+    `Input "private-key" could not be read by ssh-keygen: ${failure}. The key is passphrase-protected, in a ` +
+      'format this runner\'s OpenSSH does not support, or truncated. Strip a passphrase with ' +
+      'ssh-keygen -p -P \'<old passphrase>\' -N \'\' -f <key>, convert an unsupported key with ' +
+      'ssh-keygen -p -N \'\' -f <key> on a machine that reads it, or copy the secret again.',
   )
 }
 
 const generateKeyPair = async ({ privateKeyPath, publicKeyPath, keyType, comment }) => {
-  const sshKeygen = await requireSshKeygen()
-
   await (0,node_fs_promises__WEBPACK_IMPORTED_MODULE_4__.rm)(privateKeyPath, { force: true })
   await (0,node_fs_promises__WEBPACK_IMPORTED_MODULE_4__.rm)(publicKeyPath, { force: true })
 
@@ -66133,9 +66163,12 @@ const generateKeyPair = async ({ privateKeyPath, publicKeyPath, keyType, comment
     '-f', privateKeyPath,
   ]
 
-  const exitCode = await _actions_exec__WEBPACK_IMPORTED_MODULE_1__/* .exec */ .m(sshKeygen, args, { silent: true, ignoreReturnCode: true })
-  if (exitCode !== 0) {
-    throw new Error(`ssh-keygen exited with code ${exitCode} while generating a ${keyType} key at ${privateKeyPath}.`)
+  const failure = await runSshKeygen(args)
+  if (failure) {
+    throw new Error(
+      `ssh-keygen could not generate the ${keyType} key pair at ${privateKeyPath}: ${failure}. ` +
+        `Check that ${node_path__WEBPACK_IMPORTED_MODULE_5__.dirname(privateKeyPath)} is writable and the disk is not full.`,
+    )
   }
 
   await (0,node_fs_promises__WEBPACK_IMPORTED_MODULE_4__.chmod)(privateKeyPath, 0o600)

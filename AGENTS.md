@@ -14,6 +14,7 @@ src/              Source. ESM, plain JavaScript, Node 24.
     aws.js        AWS SDK v3 control-plane calls.
     state.js      State keys shared between the main and post steps.
 dist/             Committed ncc bundles. Generated — never edit by hand.
+test/unit/        node:test suites for src/lib, one file per module. No bundle, no Docker, no AWS.
 test/e2e/         End-to-end rig: Dockerfile (sshd), stub.mjs (AWS stand-in), run.sh.
 ```
 
@@ -33,18 +34,22 @@ That runs `ncc build src/main.js -o dist/main` and `ncc build src/post.js -o dis
 
 ## Tests and linting
 
-Run `pnpm run lint` after every change under `src/`. `.github/workflows/lint.yaml` runs it on pushes to
-`main` and on pull requests. It does not build, and it does not check that `dist/` matches `src/`.
+Run `pnpm run lint` and `pnpm test` after every change under `src/`. `.github/workflows/lint.yaml` runs the
+linter on pushes to `main` and on pull requests. It does not build, and it does not check that `dist/` matches `src/`.
 
-There is no unit test suite. `test/e2e/run.sh` drives the built bundles against a real sshd in Docker, with
+`pnpm test` runs the unit tests in `test/unit/` against the source with the built-in Node test runner. They
+cover input validation, the config block, key paths and the AWS error mapping, with a fake SDK client in place
+of AWS. Add a case there whenever a validation rule, the block format or an error message changes.
+
+`test/e2e/run.sh` drives the built bundles against a real sshd in Docker, with
 the AWS control plane stubbed, so ssh, rsync and scp exercise the `~/.ssh/config` the action actually wrote:
 
 ```sh
-pnpm run build && test/e2e/run.sh
+pnpm run build && pnpm run test:e2e
 ```
 
-Pass `DOCKER='sudo docker'` if Docker needs root. `.github/workflows/tests.yaml` runs it on pushes to `main`
-and on pull requests across three scenarios: the default alias, a 64-character alias, and a `HOME` deep
+Pass `DOCKER='sudo docker'` if Docker needs root. `.github/workflows/tests.yaml` runs the unit tests once and
+the rig across three scenarios, on pushes to `main` and on pull requests: the default alias, a 64-character alias, and a `HOME` deep
 enough to force connection multiplexing off. Run it locally after changing the SSH config block, the key
 handling or the post step.
 

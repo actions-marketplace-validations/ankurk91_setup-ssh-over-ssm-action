@@ -12,6 +12,8 @@
   },
   "scripts": {
     "lint": "oxlint --max-warnings=0",
+    "test": "node --test 'test/unit/**/*.test.js'",
+    "test:e2e": "test/e2e/run.sh",
     "build:main": "ncc build src/main.js -o dist/main",
     "build:post": "ncc build src/post.js -o dist/post",
     "build": "pnpm run build:main && pnpm run build:post",
@@ -22,8 +24,7 @@
     "@actions/exec": "^3.0.0",
     "@actions/io": "^3.0.2",
     "@aws-sdk/client-ec2-instance-connect": "^3.1135.0",
-    "@aws-sdk/client-ssm": "^3.1135.0",
-    "@aws-sdk/client-sts": "^3.1135.0"
+    "@aws-sdk/client-ssm": "^3.1135.0"
   },
   "devDependencies": {
     "@vercel/ncc": "^0.45.0",

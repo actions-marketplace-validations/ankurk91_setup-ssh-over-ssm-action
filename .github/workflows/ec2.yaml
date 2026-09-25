@@ -104,5 +104,7 @@ jobs:
           echo "--- remote listing ---"
           ssh ssm-target "ls -l /tmp/ci-test/"
           echo "--- remote file ---"
+          # The path was built on the runner, so it has to expand here, not on the instance.
+          # shellcheck disable=SC2029
           ssh ssm-target "cat '$REMOTE_FILE'"
           echo "--- end ---"

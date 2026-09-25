@@ -10,10 +10,25 @@ import {
 } from '@aws-sdk/client-ssm'
 import { setTimeout as sleep } from 'node:timers/promises'
 
-export const createClients = (region) => ({
-  ssm: new SSMClient({ region }),
-  eic: new EC2InstanceConnectClient({ region }),
+// The default Node handler never times out, so an endpoint that accepts a connection and never answers -- a
+// broken proxy, or a VPC interface endpoint whose DNS resolves -- would hang the step until the job's
+// timeout-minutes. requestTimeout on its own only logs a warning; throwOnRequestTimeout makes it an error.
+const clientConfig = (region) => ({
+  region,
+  requestHandler: { connectionTimeout: 5000, requestTimeout: 15000, throwOnRequestTimeout: true },
 })
+
+export const createClients = (region) => ({
+  ssm: new SSMClient(clientConfig(region)),
+  eic: new EC2InstanceConnectClient(clientConfig(region)),
+})
+
+const timedOut = (service, error) =>
+  new Error(
+    `${service} did not answer in time: ${error.message} Check that the runner can reach the ${service} ` +
+      'endpoint for this region, through any proxy or VPC interface endpoint it uses.',
+    { cause: error },
+  )
 
 const describeInstance = async (ssm, instanceId) => {
   const response = await ssm.send(
@@ -27,6 +42,7 @@ const describeInstance = async (ssm, instanceId) => {
 }
 
 const describeFailure = (instanceId, error) => {
+  if (error.name === 'TimeoutError') return timedOut('SSM', error)
   if (error.name === 'AccessDeniedException') {
     return new Error(
       `Not authorised to call ssm:DescribeInstanceInformation. Grant it on Resource "*" — this API does not ` +
@@ -90,6 +106,7 @@ export const sendPublicKey = async ({ eic, instanceId, osUser, publicKey }) => {
     core.debug(`SendSSHPublicKey requestId=${response.RequestId ?? 'unknown'}`)
     return response
   } catch (error) {
+    if (error.name === 'TimeoutError') throw timedOut('EC2 Instance Connect', error)
     if (error.name === 'AccessDeniedException') {
       throw new Error(
         `Not authorised to call ec2-instance-connect:SendSSHPublicKey for ${instanceId} as "${osUser}". Grant it on ` +

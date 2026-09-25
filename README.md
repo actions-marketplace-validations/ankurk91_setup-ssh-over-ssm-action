@@ -177,6 +177,11 @@ policies, and the three mistakes that cause most failures, are in **[docs/IAM.md
 What this approach costs you: keystroke logging, throughput, the sixty-second key window, and how
 concurrent jobs behave. All of it is in **[docs/Caveats.md](docs/Caveats.md)**.
 
+## Networking
+
+Public instances need nothing extra. Private instances need a NAT gateway or VPC endpoints so SSM Agent
+can reach AWS. Which endpoints, and which ones cost money, are in **[docs/Networking.md](docs/Networking.md)**.
+
 ## Links
 
 - [AWS: allow SSH connections through Session Manager](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-getting-started-enable-ssh-connections.html)

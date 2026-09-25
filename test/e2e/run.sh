@@ -89,6 +89,74 @@ count_matching() {
   echo "${#matches[@]}"
 }
 
+stub_url() {
+  echo "http://127.0.0.1:$STUB_PORT$1"
+}
+
+stub_post() {
+  node -e '
+    fetch(process.argv[1], { method: "POST", body: process.argv[2] }).then(
+      (response) => process.exit(response.ok ? 0 : 1),
+      (error) => { console.error(error.message); process.exit(1) },
+    )
+  ' "$(stub_url "$1")" "$2"
+}
+
+# One session, carrying the given marker, replaces whatever the stub held.
+seed_session() {
+  local id="$1" reason="$2"
+  stub_post /__sessions "$(printf '[{"SessionId":"%s","Target":"%s","Reason":"%s"}]' "$id" "$INSTANCE_ID" "$reason")"
+}
+
+session_ids() {
+  node -e '
+    fetch(process.argv[1])
+      .then((response) => response.json())
+      .then((sessions) => console.log(sessions.map((session) => session.SessionId).join(",")))
+      .catch(() => console.log("unreadable"))
+  ' "$(stub_url /__sessions)"
+}
+
+call_count() {
+  node -e '
+    fetch(process.argv[1])
+      .then((response) => response.json())
+      .then((calls) => console.log(calls.length))
+      .catch(() => console.log("unreadable"))
+  ' "$(stub_url /__calls)"
+}
+
+state_value() {
+  local state_file="$1" key="$2"
+  sed -n "/^$key<</{n;p;}" "$state_file"
+}
+
+# Runs the main step in a HOME of its own. Trailing NAME=value pairs override action_env.
+run_main() {
+  local slug="$1"
+  shift
+  local -a env_pairs=()
+
+  mapfile -t env_pairs < <(action_env)
+  : > "$RUN_DIR/$slug.state"
+
+  env -i "${env_pairs[@]}" "HOME=$RUN_DIR/home-$slug" "GITHUB_STATE=$RUN_DIR/$slug.state" "$@" \
+    node "$REPO_DIR/dist/main/index.js" > "$RUN_DIR/$slug.log" 2>&1
+}
+
+# Runs the post step against the state run_main recorded for the same slug.
+run_post() {
+  local slug="$1"
+  local -a env_pairs=() state_pairs=()
+
+  replay_state "$RUN_DIR/$slug.state" "$RUN_DIR/$slug.state.env"
+  mapfile -t env_pairs < <(action_env)
+  mapfile -t state_pairs < "$RUN_DIR/$slug.state.env"
+
+  env -i "${env_pairs[@]}" "${state_pairs[@]}" "HOME=$RUN_DIR/home-$slug" \
+    node "$REPO_DIR/dist/post/index.js" > "$RUN_DIR/$slug.post.log" 2>&1
+}
+
 teardown() {
   [[ -n "$stub_pid" ]] && kill "$stub_pid" 2>/dev/null
   "${DOCKER_CMD[@]}" rm -f "$CONTAINER_NAME" >/dev/null 2>&1
@@ -193,7 +261,6 @@ action_env() {
   echo 'AWS_SECRET_ACCESS_KEY=secret'
   echo "AWS_ENDPOINT_URL_SSM=http://127.0.0.1:$STUB_PORT"
   echo "AWS_ENDPOINT_URL_EC2_INSTANCE_CONNECT=http://127.0.0.1:$STUB_PORT"
-  echo "AWS_ENDPOINT_URL_STS=http://127.0.0.1:$STUB_PORT"
   echo "INPUT_INSTANCE-ID=$INSTANCE_ID"
   echo 'INPUT_OS-USER=ubuntu'
   echo "INPUT_HOST-ALIAS=$HOST_ALIAS"
@@ -306,7 +373,7 @@ awkward_home_case() {
   sed -n 's/^::error:://p' "$log_file"
 }
 
-# An encrypted key carries the same BEGIN line as a plain one, so the input regex cannot tell them apart
+# An encrypted key carries the same BEGIN line as a plain one, so the input check cannot tell them apart
 # and only ssh-keygen can. Unchecked, the action reports success and the failure lands steps later as
 # "Permission denied (publickey)". The plain key runs first so the check cannot pass by rejecting both.
 check_provided_key() {
@@ -316,12 +383,23 @@ check_provided_key() {
 
   ssh-keygen -q -t ed25519 -N '' -C e2e -f "$RUN_DIR/plain_key" </dev/null
   ssh-keygen -q -t ed25519 -N 'hunter2' -C e2e -f "$RUN_DIR/encrypted_key" </dev/null
+  ssh-keygen -q -t rsa -b 2048 -m PKCS8 -N '' -C e2e -f "$RUN_DIR/pkcs8_key" </dev/null
+  sed 's/$/\r/' "$RUN_DIR/plain_key" > "$RUN_DIR/crlf_key"
 
   run_with_provided_key "$RUN_DIR/plain_key" 'plain'
   exit_code=$?
   ok 'main accepts a key with no passphrase' "$exit_code" '0'
   ok 'the plain key gets a config block' \
     "$([[ -e "$RUN_DIR/home-plain/.ssh/config" ]] && echo present || echo absent)" 'present'
+
+  # A key pasted from a Windows editor. ssh-keygen refuses CRLF outright, so it has to be normalised first.
+  run_with_provided_key "$RUN_DIR/crlf_key" 'crlf'
+  ok 'main accepts a key with CRLF line endings' "$?" '0'
+  ok 'the key is written with LF line endings' \
+    "$(grep -c $'\r' "$(state_value "$RUN_DIR/crlf.state" private-key-path)" 2>/dev/null)" '0'
+
+  run_with_provided_key "$RUN_DIR/pkcs8_key" 'pkcs8'
+  ok 'main accepts a PKCS#8 key' "$?" '0'
 
   run_with_provided_key "$RUN_DIR/encrypted_key" 'passphrase'
   exit_code=$?
@@ -337,38 +415,137 @@ check_provided_key() {
 # Runs the main step with "private-key" set from a file, in a HOME of its own.
 run_with_provided_key() {
   local key_file="$1" slug="$2"
-  local -a env_pairs=()
-
-  mapfile -t env_pairs < <(action_env)
-  : > "$RUN_DIR/$slug.state"
 
   # The key holds newlines, so it cannot travel through action_env, which is read line by line.
-  env -i "${env_pairs[@]}" "HOME=$RUN_DIR/home-$slug" "GITHUB_STATE=$RUN_DIR/$slug.state" \
-    "INPUT_PRIVATE-KEY=$(cat "$key_file")" \
-    node "$REPO_DIR/dist/main/index.js" > "$RUN_DIR/$slug.log" 2>&1
+  run_main "$slug" "INPUT_PRIVATE-KEY=$(cat "$key_file")"
 }
 
 # first.last is ordinary on an AD-joined instance and was rejected until the pattern was widened. The
 # value lands unquoted in the User directive, so it is worth pinning what ssh makes of it.
 check_os_user() {
-  local home="$RUN_DIR/home-osuser" state_file="$RUN_DIR/osuser.state" log_file="$RUN_DIR/osuser.log"
-  local -a env_pairs=()
-  local exit_code
-
   echo '== os-user =='
 
-  mapfile -t env_pairs < <(action_env)
-  : > "$state_file"
+  run_main 'osuser' 'INPUT_OS-USER=first.last'
+  ok 'main accepts a dotted user' "$?" '0'
+  ok 'ssh resolves the dotted user' \
+    "$(ssh -G -F "$RUN_DIR/home-osuser/.ssh/config" "$HOST_ALIAS" 2>/dev/null | sed -n 's/^user //p')" 'first.last'
 
-  env -i "${env_pairs[@]}" "HOME=$home" "GITHUB_STATE=$state_file" 'INPUT_OS-USER=first.last' \
-    node "$REPO_DIR/dist/main/index.js" > "$log_file" 2>&1
+  sed -n 's/^::error:://p' "$RUN_DIR/osuser.log"
+}
+
+# The instance check runs before any key is made or pushed, so a failure there must leave no config
+# behind, and the post step that always follows must cope with the partial state main recorded.
+check_instance_check() {
+  echo '== instance check =='
+
+  instance_check_case 'ConnectionLost' 'ping status is "ConnectionLost"'
+  instance_check_case 'missing' 'is not registered with SSM'
+  stub_post /__ping Online
+}
+
+instance_check_case() {
+  local status="$1" message="$2"
+  local slug="ping-$status" exit_code
+
+  stub_post /__ping "$status"
+  run_main "$slug" 'INPUT_WAIT-TIMEOUT=0'
   exit_code=$?
 
-  ok 'main accepts a dotted user' "$exit_code" '0'
-  ok 'ssh resolves the dotted user' \
-    "$(ssh -G -F "$home/.ssh/config" "$HOST_ALIAS" 2>/dev/null | sed -n 's/^user //p')" 'first.last'
+  ok "$status: main fails" "$((exit_code == 0 ? 0 : 1))" '1'
+  ok "$status: the error names the cause" \
+    "$(grep '^::error::' "$RUN_DIR/$slug.log" | grep -cF "$message")" '1'
+  ok "$status: no config block was written" \
+    "$([[ -e "$RUN_DIR/home-$slug/.ssh/config" ]] && echo present || echo absent)" 'absent'
 
-  sed -n 's/^::error:://p' "$log_file"
+  run_post "$slug"
+  ok "$status: post after the failed main exits 0" "$?" '0'
+  # Every cleanup action reports its own failure as a warning, so none means none of them threw.
+  ok "$status: post raises no warnings" "$(grep -c '^::warning::' "$RUN_DIR/$slug.post.log")" '0'
+}
+
+# The post step runs even when main failed before it saved anything.
+check_post_without_state() {
+  local before
+
+  echo '== post with no state =='
+
+  : > "$RUN_DIR/empty.state"
+  before="$(call_count)"
+
+  run_post 'empty'
+  ok 'empty state: post exits 0' "$?" '0'
+  ok 'empty state: post says there is nothing to clean up' \
+    "$(grep -c 'nothing to clean up' "$RUN_DIR/empty.post.log")" '1'
+  ok 'empty state: post makes no AWS calls' "$(call_count)" "$before"
+}
+
+# cleanup and terminate-sessions are independent. Each case seeds one session carrying its own run's
+# marker, so what the stub still holds afterwards shows whether the post step went after it. Terminating
+# the session kills the tunnel under the control master, so the master has to go even when files stay.
+check_opt_outs() {
+  echo '== opt-outs =='
+
+  opt_out_case 'keep-all' 'false' 'ours' '1'
+  opt_out_case 'keep-files' 'true' '' '0'
+}
+
+opt_out_case() {
+  local slug="$1" terminate="$2" expected_sessions="$3" expected_masters="$4"
+  local config="$RUN_DIR/home-$slug/.ssh/config"
+  local key_path
+
+  run_main "$slug" 'INPUT_CLEANUP=false' "INPUT_TERMINATE-SESSIONS=$terminate"
+  ok "$slug: main exits 0" "$?" '0'
+
+  key_path="$(state_value "$RUN_DIR/$slug.state" private-key-path)"
+  seed_session 'ours' "$(state_value "$RUN_DIR/$slug.state" session-reason)"
+
+  if [[ "$EXPECT_MULTIPLEX" == 'yes' ]]; then
+    ok "$slug: a connection opens a control master" \
+      "$(ssh -F "$config" -o BatchMode=yes "$HOST_ALIAS" whoami 2>/dev/null)" 'ubuntu'
+  fi
+
+  run_post "$slug"
+  ok "$slug: post exits 0" "$?" '0'
+  ok "$slug: the config block stays" "$(grep -cxF "Host $HOST_ALIAS" "$config" 2>/dev/null)" '1'
+  if [[ "$EXPECT_MULTIPLEX" == 'yes' ]]; then
+    ok "$slug: control masters left running" "$(count_matching "$RUN_DIR/home-$slug/.ssh/*.sock")" "$expected_masters"
+  fi
+  ok "$slug: the key stays" "$([[ -n "$key_path" && -f "$key_path" ]] && echo yes || echo no)" 'yes'
+  ok "$slug: active sessions afterwards" "$(session_ids)" "$expected_sessions"
+
+  sed -n 's/^::error:://p' "$RUN_DIR/$slug.log"
+}
+
+# The stub shortens the 60-second EC2 Instance Connect window so the rig can outlive it. With
+# multiplexing on, a connection after the window rides the master the first one opened; one that
+# has to authenticate afresh is refused either way. Runs last, because it changes the stub's TTL.
+check_key_window() {
+  local -a ssh_opts=( -F "$RUN_DIR/home-keywindow/.ssh/config" -o BatchMode=yes )
+  local ttl_ms=5000
+
+  echo '== key window =='
+
+  stub_post /__key-ttl "$ttl_ms"
+  run_main 'keywindow'
+  ok 'key window: main exits 0' "$?" '0'
+
+  ok 'a connection inside the window succeeds' \
+    "$(ssh "${ssh_opts[@]}" "$HOST_ALIAS" whoami 2>/dev/null)" 'ubuntu'
+
+  sleep $((ttl_ms / 1000 + 1))
+
+  if [[ "$EXPECT_MULTIPLEX" == 'yes' ]]; then
+    ok 'a multiplexed connection outlives the window' \
+      "$(ssh "${ssh_opts[@]}" "$HOST_ALIAS" whoami 2>/dev/null)" 'ubuntu'
+  fi
+
+  ssh "${ssh_opts[@]}" -o ControlPath=none "$HOST_ALIAS" true 2>/dev/null
+  ok 'a fresh connection after the window is refused' "$?" '255'
+
+  run_post 'keywindow'
+  stub_post /__key-ttl "$KEY_TTL_MS"
+  sed -n 's/^::error:://p' "$RUN_DIR/keywindow.log"
 }
 
 # Runs the main step against its own state file and echoes the key path it recorded.
@@ -434,23 +611,15 @@ check_session_marker() {
 
   echo '== session marker =='
 
-  reason="$(sed -n '/^session-reason<</{n;p;}' "$RUN_DIR/state")"
+  reason="$(state_value "$RUN_DIR/state" session-reason)"
   ok 'a session marker was recorded' "$([[ -n "$reason" ]] && echo yes || echo no)" 'yes'
   # One line per aws invocation, so the count varies with multiplexing; only presence matters.
   ok 'the ProxyCommand passed --reason' \
     "$(grep -q -- "--reason $reason" "$RUN_DIR/aws-args" 2>/dev/null && echo yes || echo no)" 'yes'
 
-  node -e '
-    const [, url, reason] = process.argv
-    const sessions = [
-      { SessionId: "ours", Target: "i-0123456789abcdef0", Reason: reason },
-      { SessionId: "theirs", Target: "i-0123456789abcdef0", Reason: "another-job/9/99999999" },
-    ]
-    fetch(url, { method: "POST", body: JSON.stringify(sessions) }).then(
-      () => {},
-      (error) => { console.error(error.message); process.exit(1) },
-    )
-  ' "http://127.0.0.1:$STUB_PORT/__sessions" "$reason"
+  stub_post /__sessions "$(printf '[%s,%s]' \
+    "$(printf '{"SessionId":"ours","Target":"%s","Reason":"%s"}' "$INSTANCE_ID" "$reason")" \
+    "$(printf '{"SessionId":"theirs","Target":"%s","Reason":"another-job/9/99999999"}' "$INSTANCE_ID")")"
 }
 
 # The runner exposes saved state as STATE_* variables; replay them for the post step.
@@ -464,15 +633,15 @@ replay_state() {
     let match
     while ((match = pattern.exec(text))) out.push(`STATE_${match[1]}=${match[3]}`)
     fs.writeFileSync(process.argv[2], out.join("\n"))
-  ' "$RUN_DIR/state" "$RUN_DIR/state.env"
+  ' "$1" "$2"
 }
 
 check_post_step() {
   local -a env_pairs=() state_pairs=()
-  local exit_code block_count key_count remaining
+  local exit_code block_count key_count
 
   echo '== post =='
-  replay_state
+  replay_state "$RUN_DIR/state" "$RUN_DIR/state.env"
   mapfile -t env_pairs < <(action_env)
   mapfile -t state_pairs < "$RUN_DIR/state.env"
 
@@ -487,13 +656,7 @@ check_post_step() {
   key_count="$(count_matching "$RUN_DIR/home/.ssh/ssm-*")"
   ok 'key material deleted' "$key_count" '0'
 
-  remaining="$(node -e '
-    fetch(process.argv[1])
-      .then((response) => response.json())
-      .then((sessions) => console.log(sessions.map((session) => session.SessionId).join(",")))
-      .catch(() => console.log("unreadable"))
-  ' "http://127.0.0.1:$STUB_PORT/__sessions")"
-  ok 'only the session from this job was terminated' "$remaining" 'theirs'
+  ok 'only the session from this job was terminated' "$(session_ids)" 'theirs'
 
   diff -q "$RUN_DIR/seed.config" "$RUN_DIR/home/.ssh/config" >/dev/null 2>&1
   ok 'pre-existing config restored byte for byte' "$?" '0'
@@ -506,7 +669,7 @@ report_stub_calls() {
       .then((response) => response.text())
       .then((body) => console.log(body))
       .catch(() => {})
-  ' "http://127.0.0.1:$STUB_PORT/__calls"
+  ' "$(stub_url /__calls)"
 }
 
 # ---------------------------------------------------------------- run
@@ -529,6 +692,10 @@ main() {
   check_awkward_home
   check_provided_key
   check_os_user
+  check_instance_check
+  check_post_without_state
+  check_opt_outs
+  check_key_window
   report_stub_calls
 
   echo
