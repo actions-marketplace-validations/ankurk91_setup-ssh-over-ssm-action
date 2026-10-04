@@ -28,6 +28,6 @@
   },
   "devDependencies": {
     "@vercel/ncc": "^0.45.0",
-    "oxlint": "^1.83.0"
+    "oxlint": "^1.85.0"
   }
 }
