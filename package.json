@@ -23,11 +23,11 @@
     "@actions/core": "^3.0.1",
     "@actions/exec": "^3.0.0",
     "@actions/io": "^3.0.2",
-    "@aws-sdk/client-ec2-instance-connect": "^3.1136.0",
-    "@aws-sdk/client-ssm": "^3.1136.0"
+    "@aws-sdk/client-ec2-instance-connect": "^3.1141.0",
+    "@aws-sdk/client-ssm": "^3.1141.0"
   },
   "devDependencies": {
     "@vercel/ncc": "^0.45.0",
-    "oxlint": "^1.83.0"
+    "oxlint": "^1.85.0"
   }
 }
